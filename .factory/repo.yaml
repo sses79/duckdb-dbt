@@ -1,0 +1,106 @@
+version: 1
+repository: sses79/duckdb-dbt
+default_branch: main
+
+context:
+  enabled: true
+  classification: public
+  allowed_targets:
+    - sses79/duckdb-dbt
+  allowed_model_policies:
+    - codex-sdk-openrouter-public-readonly-live
+    - codex-sdk-openrouter-public-write-proposal-live
+    - claude-agent-sdk-openrouter-public-reviewer-live
+  denied_paths:
+    - .env
+    - .env.*
+    - "*.pem"
+    - "*.key"
+    - "*.duckdb"
+    - .git/**
+    - .github/**
+    - .factory/state/**
+    - .factory/artifacts/**
+    - data/*.csv
+    - data/*.pdf
+    - data/*.zip
+    - generated-data/**
+    - warehouse/**
+    - exports/**
+  max_context_files: 32
+  max_context_file_bytes: 98304
+  max_context_bytes: 262144
+  allow_public_output: true
+
+paths:
+  writable:
+    - src/**
+    - scripts/**
+    - dbt/**
+    - infra/duckdb/**
+    - README.md
+    - Makefile
+  denied:
+    - .env
+    - .env.*
+    - "*.pem"
+    - "*.key"
+    - "*.duckdb"
+    - .git/**
+    - .github/**
+    - .factory/**
+    - data/**
+    - generated-data/**
+    - warehouse/**
+    - exports/**
+    - package.json
+    - pnpm-lock.yaml
+    - requirements-dbt.txt
+    - dbt/profiles.yml
+
+commands:
+  typecheck:
+    argv:
+      - node_modules/.bin/tsc
+      - --noEmit
+    timeout_seconds: 120
+    idempotent: true
+    allowed_hosts: []
+    validation_kind: generic
+    evidence_outputs: []
+  test:
+    argv:
+      - node_modules/.bin/vitest
+      - run
+      - --dir
+      - src
+      - --maxWorkers=1
+    timeout_seconds: 300
+    idempotent: true
+    allowed_hosts: []
+    validation_kind: test
+    evidence_outputs: []
+  pipeline:
+    argv:
+      - node
+      - scripts/verify-local.ts
+    timeout_seconds: 300
+    idempotent: true
+    allowed_hosts: []
+    validation_kind: generic
+    evidence_outputs: []
+
+required_checks:
+  - typecheck
+  - test
+  - pipeline
+
+environment:
+  allowed_variables: []
+
+network:
+  default: deny
+
+pull_request:
+  draft: true
+  auto_merge: false

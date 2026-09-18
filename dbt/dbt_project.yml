@@ -1,0 +1,33 @@
+name: school_wellbeing_demo
+version: "0.1.0"
+config-version: 2
+profile: school_wellbeing_demo
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+target-path: target
+clean-targets: ["target", "logs"]
+
+flags:
+  send_anonymous_usage_stats: false
+  partial_parse: false
+
+models:
+  school_wellbeing_demo:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: staging
+      +materialized: table
+    core:
+      +schema: core
+      +materialized: table
+    marts:
+      +schema: marts
+      +materialized: table
+
+seeds:
+  school_wellbeing_demo:
+    +schema: core

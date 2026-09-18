@@ -1,0 +1,24 @@
+{
+  "name": "duckdb-dbt",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=26.7.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --dir src --maxWorkers=1",
+    "pipeline": "node scripts/verify-local.ts"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "1.5.5-r.5",
+    "csv-parse": "7.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.1",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}

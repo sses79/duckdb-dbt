@@ -1,0 +1,25 @@
+# Survey source data and everything derived from it stay out of Git (public repository).
+data/*
+!data/README.md
+generated-data/
+warehouse/
+exports/
+*.duckdb
+*.duckdb.wal
+
+# Tooling
+node_modules/
+.venv/
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+.env
+.env.*
+!.env.example
+
+# Factory run state
+.factory/state/
+.factory/artifacts/
+.factory/queue.sqlite
+.DS_Store

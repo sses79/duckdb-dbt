@@ -1,0 +1,8 @@
+school_wellbeing_demo:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', 'warehouse/wellbeing.duckdb') }}"
+      schema: main
+      threads: 1
