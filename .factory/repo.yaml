@@ -96,7 +96,10 @@ required_checks:
   - pipeline
 
 environment:
-  allowed_variables: []
+  # The factory gives checks a fixed PATH, so the pipeline check finds dbt through this
+  # variable when it is set (the supervisor sets it to the dbt venv); CI leaves it unset.
+  allowed_variables:
+    - DBT_EXECUTABLE
 
 network:
   default: deny
