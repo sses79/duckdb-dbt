@@ -1,9 +1,9 @@
 # Survey source data and everything derived from it stay out of Git (public repository).
-data/*
-!data/README.md
-generated-data/
-warehouse/
-exports/
+/data/*
+!/data/README.md
+/generated-data/
+/warehouse/
+/exports/
 *.duckdb
 *.duckdb.wal
 
