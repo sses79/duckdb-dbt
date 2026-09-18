@@ -1,6 +1,7 @@
 // The `pipeline` check. Runs the local path end to end in a temporary directory so the
 // working tree is never written to. Onboarding stub: until the generator and loader exist,
 // it builds the dbt project against an empty DuckDB file.
+// dbt is DBT_EXECUTABLE when set (factory runs get a fixed PATH), otherwise `dbt` on PATH.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,7 +20,7 @@ try {
   step(
     'dbt build',
     [
-      'dbt',
+      process.env.DBT_EXECUTABLE ?? 'dbt',
       'build',
       '--project-dir',
       'dbt',
