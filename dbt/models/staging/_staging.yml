@@ -1,0 +1,78 @@
+version: 2
+
+models:
+  - name: stg_wellbeing_submission_changes
+    columns:
+      - name: event_id
+        tests:
+          - unique
+          - not_null
+      - name: document_id
+        tests:
+          - not_null
+      - name: source_version
+        tests:
+          - not_null
+      - name: source_updated_at
+        tests:
+          - not_null
+      - name: operation
+        tests:
+          - accepted_values:
+              values:
+                - upsert
+                - delete
+
+unit_tests:
+  - name: stg_dedupes_redelivered_event
+    model: stg_wellbeing_submission_changes
+    given:
+      - input: source('raw', 'wellbeing_submission_events')
+        rows:
+          - event_id: evt_1
+            document_id: doc_1
+            operation: upsert
+            source_version: 1
+            source_updated_at: '2019-08-01 00:00:00+00'
+            extracted_at: '2019-08-01 00:00:00+00'
+            schema_version: wellbeing-submission/1
+            batch_id: batch_a
+            region: uk
+            payload: '{"trust_id": "trust_north", "school_id": "school_a", "school_classification": "Secondary", "year_group": "Year 8", "local_authority": "Leeds", "survey_period": "2018-autumn", "answers": {}}'
+            source_file: batch_a/events.jsonl
+            source_file_row_number: 1
+            loaded_at: '2019-08-01 00:00:00+00'
+          - event_id: evt_1
+            document_id: doc_1
+            operation: upsert
+            source_version: 1
+            source_updated_at: '2019-08-02 00:00:00+00'
+            extracted_at: '2019-08-02 00:00:00+00'
+            schema_version: wellbeing-submission/1
+            batch_id: batch_b
+            region: uk
+            payload: '{"trust_id": "trust_north", "school_id": "school_a", "school_classification": "Secondary", "year_group": "Year 8", "local_authority": "Leeds", "survey_period": "2018-autumn", "answers": {}}'
+            source_file: batch_b/events.jsonl
+            source_file_row_number: 1
+            loaded_at: '2019-08-02 00:00:00+00'
+          - event_id: evt_2
+            document_id: doc_2
+            operation: upsert
+            source_version: 1
+            source_updated_at: '2019-08-02 00:00:00+00'
+            extracted_at: '2019-08-02 00:00:00+00'
+            schema_version: wellbeing-submission/1
+            batch_id: batch_b
+            region: uk
+            payload: '{"trust_id": "trust_north", "school_id": "school_b", "school_classification": "Secondary", "year_group": "Year 8", "local_authority": "Leeds", "survey_period": "2018-autumn", "answers": {}}'
+            source_file: batch_b/events.jsonl
+            source_file_row_number: 2
+            loaded_at: '2019-08-02 00:00:00+00'
+    expect:
+      rows:
+        - event_id: evt_1
+          batch_id: batch_a
+          trust_id: trust_north
+        - event_id: evt_2
+          batch_id: batch_b
+          trust_id: trust_north
