@@ -3,7 +3,7 @@
 // load it into DuckDB, prove reload is idempotent, then run dbt build on the same file.
 // dbt is DBT_EXECUTABLE when set (factory runs get a fixed PATH), otherwise `dbt` on PATH.
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -15,6 +15,7 @@ import { buildSubmissionEvent } from '../src/generator/envelope.ts';
 import { parseSurveySource } from '../src/generator/source.ts';
 import type { SourceResponse } from '../src/generator/source.ts';
 import { buildSyntheticSurveyCsv } from '../src/generator/testing/syntheticSurvey.ts';
+import { exportTenants, TENANTS } from '../src/publication/exportTenants.ts';
 import { applyFoundation } from '../src/warehouse/foundation.ts';
 import { loadBatch } from '../src/warehouse/loadBatch.ts';
 
@@ -111,6 +112,48 @@ try {
     ],
     env
   );
+
+  console.log('pipeline: export');
+  try {
+    const instance = await DuckDBInstance.create(join(workDir, 'wellbeing.duckdb'));
+    const connection = await instance.connect();
+    await exportTenants(connection, {
+      exportRoot: join(workDir, 'exports'),
+      runId: 'pipeline_check',
+    });
+
+    const current = JSON.parse(readFileSync(join(workDir, 'exports', 'current.json'), 'utf8')) as {
+      run_id: string;
+      tenants: Record<string, string>;
+    };
+    if (current.run_id !== 'pipeline_check') {
+      throw new Error(`expected current.json run_id 'pipeline_check', got '${current.run_id}'`);
+    }
+    for (const tenant of TENANTS) {
+      const tenantRun = `run_id=pipeline_check/tenant=${tenant}`;
+      if (current.tenants[tenant] !== tenantRun) {
+        throw new Error(
+          `expected current.json tenants[${tenant}] to be '${tenantRun}', got '${current.tenants[tenant]}'`,
+        );
+      }
+      const manifestPath = join(workDir, 'exports', tenantRun, 'publication_manifest.json');
+      if (!existsSync(manifestPath)) {
+        throw new Error(`expected manifest to exist at ${manifestPath}`);
+      }
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+        files: Array<{ row_count: number }>;
+      };
+      const rowCount = manifest.files[0]?.row_count ?? 0;
+      if (rowCount <= 0) {
+        throw new Error(`expected ${manifestPath} files[0].row_count to be greater than 0, got ${rowCount}`);
+      }
+      console.log(`pipeline: export ${tenant} ${rowCount} rows`);
+    }
+    connection.closeSync();
+    instance.closeSync();
+  } catch (error) {
+    throw stepError('export', error);
+  }
   console.log('pipeline: ok');
 } catch (error) {
   console.error(`pipeline: ${(error as Error).message}`);
