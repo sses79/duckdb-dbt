@@ -156,6 +156,19 @@ describe('exportTenants', () => {
     expect(suppressed[0]?.adverse_response_rate).toBe('');
   });
 
+  it('exports under a directory whose name contains a single quote', async () => {
+    const quotedRoot = join(exportRoot, "o'brien");
+    await exportTenants(connection, { exportRoot: quotedRoot, runId: 'run_q' });
+
+    for (const tenant of TENANTS) {
+      const csvPath = join(quotedRoot, 'run_id=run_q', `tenant=${tenant}`, TREND_CSV_FILE);
+      const rows = parse(readFileSync(csvPath, 'utf8'), { columns: true }) as Array<Record<string, string>>;
+      expect(rows.length).toBe(await martCount(tenant));
+    }
+    const current = JSON.parse(readFileSync(join(quotedRoot, CURRENT_FILE), 'utf8')) as { run_id: string };
+    expect(current.run_id).toBe('run_q');
+  });
+
   it('refuses to export under an existing run_id', async () => {
     const runId = 'run_existing';
     mkdirSync(join(exportRoot, `run_id=${runId}`), { recursive: true });

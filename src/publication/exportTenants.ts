@@ -133,7 +133,7 @@ export async function exportTenants(connection: DuckDBConnection, options: Expor
       const csvPath = join(tenantPath, TREND_CSV_FILE);
 
       await connection.run(
-        `COPY (SELECT ${TREND_COLUMNS.join(', ')} FROM marts.mart_school_wellbeing_trend WHERE trust_id = '${tenant}' ORDER BY school_id, school_classification, survey_period, question_code) TO '${csvPath}' (FORMAT CSV, HEADER)`,
+        `COPY (SELECT ${TREND_COLUMNS.join(', ')} FROM marts.mart_school_wellbeing_trend WHERE trust_id = '${tenant}' ORDER BY school_id, school_classification, survey_period, question_code) TO '${csvPath.replaceAll("'", "''")}' (FORMAT CSV, HEADER)`,
       );
 
       const countRows = (
