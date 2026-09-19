@@ -30,5 +30,23 @@ export PATH="$PWD/.venv/bin:$PATH"      # dbt must be on PATH
 ```bash
 node_modules/.bin/tsc --noEmit
 node_modules/.bin/vitest run --dir src --maxWorkers=1
-node scripts/verify-local.ts            # fixture -> generate -> load -> dbt build, in a temp dir
+node scripts/verify-local.ts            # fixture -> generate -> load -> dbt build -> export, in a temp dir
 ```
+
+## Local run
+
+The local path runs against the real survey CSV at `data/school-survey-2018-19-1.csv` (see [`data/README.md`](data/README.md)), and `dbt` comes from `DBT_EXECUTABLE` when set, otherwise from `PATH`.
+
+```bash
+make help      # list the available targets
+make check     # run typecheck, tests and the pipeline check (uses the synthetic fixture)
+make generate  # create the batch in generated-data/ from the real CSV
+make load      # load the batch into warehouse/wellbeing.duckdb
+make build     # run dbt build over the DuckDB warehouse
+make export    # write per-tenant exports under exports/
+make all       # run generate -> load -> build -> export
+```
+
+Outputs go to the ignored `generated-data/`, `warehouse/` and `exports/` directories;
+`exports/current.json` names the files for the latest publication. No survey data or anything
+derived from it is committed.
