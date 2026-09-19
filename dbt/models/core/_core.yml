@@ -1,0 +1,85 @@
+version: 2
+
+models:
+  - name: fct_wellbeing_response
+    description: >
+      One row per document and catalogue question, with the submitted answer,
+      whether the question was answered, and whether that answer is adverse.
+    columns:
+      - name: document_id
+        tests:
+          - not_null
+      - name: trust_id
+        tests:
+          - not_null
+      - name: school_id
+        tests:
+          - not_null
+      - name: school_classification
+        tests:
+          - not_null
+      - name: year_group
+        tests:
+          - not_null
+      - name: survey_period
+        tests:
+          - not_null
+      - name: question_code
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: is_answered
+        tests:
+          - not_null
+      - name: is_adverse
+        tests:
+          - not_null
+
+unit_tests:
+  - name: fact_flags_answered_and_adverse
+    model: fct_wellbeing_response
+    given:
+      - input: ref('int_wellbeing_answers')
+        rows:
+          - document_id: doc_1
+            trust_id: trust_north
+            question_code: feel_sad
+            answer_label: Every day
+          - document_id: doc_1
+            trust_id: trust_north
+            question_code: feel_happy
+            answer_label: Every day
+          - document_id: doc_1
+            trust_id: trust_north
+            question_code: feel_lonely
+            answer_label: null
+      - input: ref('indicator_answer_catalog')
+        rows:
+          - question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Every day
+            answer_order: 5
+            is_adverse: true
+          - question_code: feel_happy
+            category: emotional_wellbeing
+            answer_label: Every day
+            answer_order: 5
+            is_adverse: false
+          - question_code: feel_lonely
+            category: emotional_wellbeing
+            answer_label: Never
+            answer_order: 1
+            is_adverse: false
+    expect:
+      rows:
+        - question_code: feel_sad
+          is_answered: true
+          is_adverse: true
+        - question_code: feel_happy
+          is_answered: true
+          is_adverse: false
+        - question_code: feel_lonely
+          is_answered: false
+          is_adverse: false
