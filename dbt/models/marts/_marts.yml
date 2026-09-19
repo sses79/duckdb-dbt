@@ -1,0 +1,99 @@
+version: 2
+
+models:
+  - name: mart_school_wellbeing_trend
+    description: >
+      One row per trust, school, survey period, question and category with
+      eligible, answered, missing and adverse response counts. Cohorts with
+      fewer than 10 answered responses are suppressed: their adverse counts
+      and rates are null and is_suppressed is true.
+    columns:
+      - name: trust_id
+        tests:
+          - not_null
+      - name: school_id
+        tests:
+          - not_null
+      - name: school_classification
+        tests:
+          - not_null
+      - name: survey_period
+        tests:
+          - not_null
+      - name: question_code
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+      - name: eligible_submission_count
+        tests:
+          - not_null
+      - name: answered_response_count
+        tests:
+          - not_null
+      - name: missing_response_count
+        tests:
+          - not_null
+      - name: is_suppressed
+        tests:
+          - not_null
+
+unit_tests:
+  - name: trend_suppresses_small_cohorts
+    model: mart_school_wellbeing_trend
+    given:
+      - input: ref('fct_wellbeing_response')
+        format: sql
+        rows: |
+          select
+              document_id,
+              trust_id,
+              school_id,
+              school_classification,
+              year_group,
+              survey_period,
+              question_code,
+              category,
+              answer_label,
+              answer_order,
+              is_answered,
+              is_adverse
+          from (
+              values
+              {% for i in range(1, 11) %}
+              ('doc_a{{ i }}', 'trust_north', 'school_a', 'Secondary', 'year_10', '2018-autumn', 'feel_sad', 'emotional_wellbeing', 'Every day', 5, true, {{ 'true' if i <= 3 else 'false' }}),
+              {% endfor %}
+              {% for i in range(1, 11) %}
+              ('doc_b{{ i }}', 'trust_north', 'school_b', 'Secondary', 'year_10', '2018-autumn', 'feel_sad', 'emotional_wellbeing', {{ "'Every day'" if i <= 9 else 'null' }}, {{ '5' if i <= 9 else 'null' }}, {{ 'true' if i <= 9 else 'false' }}, {{ 'true' if i <= 9 else 'false' }}){{ ',' if not loop.last }}
+              {% endfor %}
+          ) as t(
+              document_id,
+              trust_id,
+              school_id,
+              school_classification,
+              year_group,
+              survey_period,
+              question_code,
+              category,
+              answer_label,
+              answer_order,
+              is_answered,
+              is_adverse
+          )
+    expect:
+      rows:
+        - school_id: school_a
+          eligible_submission_count: 10
+          answered_response_count: 10
+          missing_response_count: 0
+          adverse_response_count: 3
+          adverse_response_rate: 0.3
+          is_suppressed: false
+        - school_id: school_b
+          eligible_submission_count: 10
+          answered_response_count: 9
+          missing_response_count: 1
+          adverse_response_count: null
+          adverse_response_rate: null
+          is_suppressed: true
