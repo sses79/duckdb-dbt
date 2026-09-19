@@ -1,0 +1,85 @@
+version: 2
+
+models:
+  - name: int_wellbeing_submission_latest
+    columns:
+      - name: document_id
+        tests:
+          - unique
+          - not_null
+
+  - name: int_wellbeing_submission_current
+    columns:
+      - name: document_id
+        tests:
+          - unique
+          - not_null
+      - name: operation
+        tests:
+          - accepted_values:
+              values:
+                - upsert
+
+unit_tests:
+  - name: latest_higher_version_wins
+    model: int_wellbeing_submission_latest
+    given:
+      - input: ref('stg_wellbeing_submission_changes')
+        rows:
+          - event_id: evt_a
+            document_id: doc_1
+            operation: upsert
+            source_version: 3
+            source_updated_at: '2019-01-01 00:00:00+00'
+          - event_id: evt_b
+            document_id: doc_1
+            operation: upsert
+            source_version: 2
+            source_updated_at: '2019-06-01 00:00:00+00'
+          - event_id: evt_c
+            document_id: doc_2
+            operation: upsert
+            source_version: 1
+            source_updated_at: '2019-01-01 00:00:00+00'
+          - event_id: evt_d
+            document_id: doc_2
+            operation: upsert
+            source_version: 1
+            source_updated_at: '2019-02-01 00:00:00+00'
+          - event_id: evt_e
+            document_id: doc_3
+            operation: upsert
+            source_version: 1
+            source_updated_at: '2019-01-01 00:00:00+00'
+          - event_id: evt_f
+            document_id: doc_3
+            operation: delete
+            source_version: 2
+            source_updated_at: '2019-03-01 00:00:00+00'
+    expect:
+      rows:
+        - document_id: doc_1
+          event_id: evt_a
+          operation: upsert
+        - document_id: doc_2
+          event_id: evt_d
+          operation: upsert
+        - document_id: doc_3
+          event_id: evt_f
+          operation: delete
+  - name: current_excludes_tombstones
+    model: int_wellbeing_submission_current
+    given:
+      - input: ref('int_wellbeing_submission_latest')
+        rows:
+          - document_id: doc_1
+            event_id: evt_a
+            operation: upsert
+          - document_id: doc_3
+            event_id: evt_f
+            operation: delete
+    expect:
+      rows:
+        - document_id: doc_1
+          event_id: evt_a
+          operation: upsert
