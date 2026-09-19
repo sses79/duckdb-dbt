@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { writeBatch } from '../generator/batch.ts';
 import type { SubmissionEvent } from '../generator/envelope.ts';
 import { applyFoundation } from './foundation.ts';
-import { LoadBatchError, loadBatch } from './loadBatch.ts';
+import { LoadBatchError, loadBatch, redactDatabaseMessage } from './loadBatch.ts';
 
 let connection: DuckDBConnection;
 const tempDirs: string[] = [];
@@ -243,6 +243,50 @@ describe('loadBatch', () => {
         [batchId],
       ),
     ).toBe(1201);
+  });
+
+  it('redacts bound values that DuckDB repeats in its messages', () => {
+    expect(
+      redactDatabaseMessage(
+        'Conversion Error: Malformed JSON at byte 36 of input: unexpected end of data.  Input: "{"answers": {"feel_sad": "Every day""\n\nLINE 1: insert into t values ($1::JSON)',
+      ),
+    ).toBe('Conversion Error: Malformed JSON at byte 36 of input: unexpected end of data. [values redacted]');
+    expect(redactDatabaseMessage("Conversion Error: Could not convert string 'Every day' to INT32")).toBe(
+      'Conversion Error: Could not convert string [values redacted]',
+    );
+    expect(redactDatabaseMessage('Catalog Error: Table with name t does not exist!\n\nLINE 1: select')).toBe(
+      'Catalog Error: Table with name t does not exist!',
+    );
+  });
+
+  it('keeps a rejected value out of the thrown error and the pipeline run', async () => {
+    const batchId = 'bad-value';
+    const dir = await mkdtemp(join(tmpdir(), 'loadBatch-'));
+    tempDirs.push(dir);
+    const events = [makeEvent(batchId, 0), { ...makeEvent(batchId, 1), source_updated_at: 'SENSITIVE-not-a-date' }];
+    await writeBatch({ events, outputDir: dir, batchId, scenario: 'test', expected: {} });
+
+    const caught = await loadBatch(connection, dir).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(caught).toBeInstanceOf(LoadBatchError);
+    expect((caught as Error).message).toContain('Conversion Error');
+    expect((caught as Error).message).not.toContain('SENSITIVE');
+    const runs = (
+      await connection.runAndReadAll(
+        "SELECT error_message FROM audit.pipeline_runs WHERE step = 'load' AND status = 'failed' AND batch_id = $1",
+        [batchId],
+      )
+    ).getRowObjects();
+    expect(runs).toHaveLength(1);
+    expect(String(runs[0]?.error_message)).not.toContain('SENSITIVE');
+    expect(
+      await countRows('SELECT count(*)::INTEGER AS n FROM raw.wellbeing_submission_events WHERE batch_id = $1', [
+        batchId,
+      ]),
+    ).toBe(0);
   });
 
   it('wraps unexpected database errors in LoadBatchError with the underlying message', async () => {

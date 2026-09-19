@@ -30,6 +30,20 @@ export interface LoadBatchResult {
   rowsLoaded: number;
 }
 
+const REDACTED_SUFFIX = ' [values redacted]';
+
+// DuckDB repeats bound values in its messages (a malformed JSON payload after `Input:`, a bad
+// timestamp in quotes), so a database error keeps only its first line up to the first quote.
+export function redactDatabaseMessage(message: string): string {
+  const firstLine = message.split('\n', 1)[0] ?? '';
+  const quoteAt = firstLine.search(/["']/);
+  if (quoteAt === -1) {
+    return firstLine;
+  }
+  const kept = firstLine.slice(0, quoteAt).replace(/\s*Input:\s*$/, '').trimEnd();
+  return `${kept}${REDACTED_SUFFIX}`;
+}
+
 interface PipelineRunRecord {
   runId: string;
   status: 'succeeded' | 'skipped' | 'failed';
@@ -247,7 +261,8 @@ export async function loadBatch(
     return { status: 'loaded', batchId, rowsLoaded: manifest.row_count };
   } catch (error) {
     status = 'failed';
-    errorMessage = error instanceof Error ? error.message : String(error);
+    const rawMessage = error instanceof Error ? error.message : String(error);
+    errorMessage = error instanceof LoadBatchError ? rawMessage : redactDatabaseMessage(rawMessage);
     if (transactionOpen) {
       transactionOpen = false;
       try {
