@@ -1,0 +1,38 @@
+version: 2
+
+seeds:
+  - name: indicator_answer_catalog
+    config:
+      column_types:
+        question_code: varchar
+        question_label: varchar
+        category: varchar
+        answer_label: varchar
+        answer_order: integer
+        is_adverse: boolean
+    columns:
+      - name: question_code
+        tests:
+          - not_null
+      - name: question_label
+        tests:
+          - not_null
+      - name: category
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - emotional_wellbeing
+                - relationships
+                - school_connection
+                - safety
+                - healthy_lifestyle
+      - name: answer_label
+        tests:
+          - not_null
+      - name: answer_order
+        tests:
+          - not_null
+      - name: is_adverse
+        tests:
+          - not_null
