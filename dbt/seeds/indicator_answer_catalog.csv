@@ -1,0 +1,88 @@
+question_code,question_label,category,answer_label,answer_order,is_adverse
+feel_sad,Sad or upset,emotional_wellbeing,Never,1,false
+feel_sad,Sad or upset,emotional_wellbeing,Rarely,2,false
+feel_sad,Sad or upset,emotional_wellbeing,Some days,3,false
+feel_sad,Sad or upset,emotional_wellbeing,Most days,4,true
+feel_sad,Sad or upset,emotional_wellbeing,Every day,5,true
+feel_lonely,Lonely,emotional_wellbeing,Never,1,false
+feel_lonely,Lonely,emotional_wellbeing,Rarely,2,false
+feel_lonely,Lonely,emotional_wellbeing,Some days,3,false
+feel_lonely,Lonely,emotional_wellbeing,Most days,4,true
+feel_lonely,Lonely,emotional_wellbeing,Every day,5,true
+feel_confident,Confident,emotional_wellbeing,Never,1,true
+feel_confident,Confident,emotional_wellbeing,Rarely,2,true
+feel_confident,Confident,emotional_wellbeing,Some days,3,false
+feel_confident,Confident,emotional_wellbeing,Most days,4,false
+feel_confident,Confident,emotional_wellbeing,Every day,5,false
+feel_stressed,Stressed or anxious,emotional_wellbeing,Never,1,false
+feel_stressed,Stressed or anxious,emotional_wellbeing,Rarely,2,false
+feel_stressed,Stressed or anxious,emotional_wellbeing,Some days,3,false
+feel_stressed,Stressed or anxious,emotional_wellbeing,Most days,4,true
+feel_stressed,Stressed or anxious,emotional_wellbeing,Every day,5,true
+feel_happy,Happy,emotional_wellbeing,Never,1,true
+feel_happy,Happy,emotional_wellbeing,Rarely,2,true
+feel_happy,Happy,emotional_wellbeing,Some days,3,false
+feel_happy,Happy,emotional_wellbeing,Most days,4,false
+feel_happy,Happy,emotional_wellbeing,Every day,5,false
+feel_angry,Bad tempered or angry,emotional_wellbeing,Never,1,false
+feel_angry,Bad tempered or angry,emotional_wellbeing,Rarely,2,false
+feel_angry,Bad tempered or angry,emotional_wellbeing,Some days,3,false
+feel_angry,Bad tempered or angry,emotional_wellbeing,Most days,4,true
+feel_angry,Bad tempered or angry,emotional_wellbeing,Every day,5,true
+friends_happiness,How happy do you feel about the number of good friends you have?,relationships,Very unhappy,1,true
+friends_happiness,How happy do you feel about the number of good friends you have?,relationships,Unhappy,2,true
+friends_happiness,How happy do you feel about the number of good friends you have?,relationships,Ok,3,false
+friends_happiness,How happy do you feel about the number of good friends you have?,relationships,Happy,4,false
+friends_happiness,How happy do you feel about the number of good friends you have?,relationships,Very happy,5,false
+bullying_frequency,"In the last 12 months, how often (if at all) have you been bullied in or around school/college?",relationships,Not at all,1,false
+bullying_frequency,"In the last 12 months, how often (if at all) have you been bullied in or around school/college?",relationships,A few times this year,2,false
+bullying_frequency,"In the last 12 months, how often (if at all) have you been bullied in or around school/college?",relationships,Every month,3,false
+bullying_frequency,"In the last 12 months, how often (if at all) have you been bullied in or around school/college?",relationships,Every week,4,true
+bullying_frequency,"In the last 12 months, how often (if at all) have you been bullied in or around school/college?",relationships,Most days,5,true
+bullying_frequency,"In the last 12 months, how often (if at all) have you been bullied in or around school/college?",relationships,Every day,6,true
+school_belonging,I feel like I belong to my school/college community,school_connection,Strongly disagree,1,true
+school_belonging,I feel like I belong to my school/college community,school_connection,Disagree,2,true
+school_belonging,I feel like I belong to my school/college community,school_connection,Not sure,3,false
+school_belonging,I feel like I belong to my school/college community,school_connection,Agree,4,false
+school_belonging,I feel like I belong to my school/college community,school_connection,Strongly agree,5,false
+school_helps_when_worried,My school/college helps me if I am worried or have a problem,school_connection,Strongly disagree,1,true
+school_helps_when_worried,My school/college helps me if I am worried or have a problem,school_connection,Disagree,2,true
+school_helps_when_worried,My school/college helps me if I am worried or have a problem,school_connection,Not sure,3,false
+school_helps_when_worried,My school/college helps me if I am worried or have a problem,school_connection,Agree,4,false
+school_helps_when_worried,My school/college helps me if I am worried or have a problem,school_connection,Strongly agree,5,false
+school_enjoyment,I enjoy going to school/college,school_connection,Strongly disagree,1,true
+school_enjoyment,I enjoy going to school/college,school_connection,Disagree,2,true
+school_enjoyment,I enjoy going to school/college,school_connection,Not sure,3,false
+school_enjoyment,I enjoy going to school/college,school_connection,Agree,4,false
+school_enjoyment,I enjoy going to school/college,school_connection,Strongly agree,5,false
+school_welcoming,My school/college is a welcoming and caring place,school_connection,Strongly disagree,1,true
+school_welcoming,My school/college is a welcoming and caring place,school_connection,Disagree,2,true
+school_welcoming,My school/college is a welcoming and caring place,school_connection,Not sure,3,false
+school_welcoming,My school/college is a welcoming and caring place,school_connection,Agree,4,false
+school_welcoming,My school/college is a welcoming and caring place,school_connection,Strongly agree,5,false
+staff_relationship,I get on well with staff in my school/college,school_connection,Strongly disagree,1,true
+staff_relationship,I get on well with staff in my school/college,school_connection,Disagree,2,true
+staff_relationship,I get on well with staff in my school/college,school_connection,Not sure,3,false
+staff_relationship,I get on well with staff in my school/college,school_connection,Agree,4,false
+staff_relationship,I get on well with staff in my school/college,school_connection,Strongly agree,5,false
+safety_toilets,School/college toilets,safety,Very unsafe,1,true
+safety_toilets,School/college toilets,safety,Unsafe,2,true
+safety_toilets,School/college toilets,safety,Safe,3,false
+safety_toilets,School/college toilets,safety,Very safe,4,false
+safety_travel,Travelling to and from school/college,safety,Very unsafe,1,true
+safety_travel,Travelling to and from school/college,safety,Unsafe,2,true
+safety_travel,Travelling to and from school/college,safety,Safe,3,false
+safety_travel,Travelling to and from school/college,safety,Very safe,4,false
+safety_lessons,During lessons at school/college,safety,Very unsafe,1,true
+safety_lessons,During lessons at school/college,safety,Unsafe,2,true
+safety_lessons,During lessons at school/college,safety,Safe,3,false
+safety_lessons,During lessons at school/college,safety,Very safe,4,false
+safety_outside_lessons,"At school/college, not in lessons",safety,Very unsafe,1,true
+safety_outside_lessons,"At school/college, not in lessons",safety,Unsafe,2,true
+safety_outside_lessons,"At school/college, not in lessons",safety,Safe,3,false
+safety_outside_lessons,"At school/college, not in lessons",safety,Very safe,4,false
+healthy_lifestyle_encouragement,How good is your school/college at encouraging you to have a healthy lifestyle?,healthy_lifestyle,Very poor,1,true
+healthy_lifestyle_encouragement,How good is your school/college at encouraging you to have a healthy lifestyle?,healthy_lifestyle,Poor,2,true
+healthy_lifestyle_encouragement,How good is your school/college at encouraging you to have a healthy lifestyle?,healthy_lifestyle,Ok,3,false
+healthy_lifestyle_encouragement,How good is your school/college at encouraging you to have a healthy lifestyle?,healthy_lifestyle,Good,4,false
+healthy_lifestyle_encouragement,How good is your school/college at encouraging you to have a healthy lifestyle?,healthy_lifestyle,Very good,5,false
