@@ -89,8 +89,8 @@ function validateManifest(parsed: unknown): BatchManifest {
     throw new LoadBatchError('Batch manifest expected must be an object');
   }
   for (const [key, value] of Object.entries(manifest.expected)) {
-    if (typeof value !== 'number') {
-      throw new LoadBatchError(`Batch manifest expected.${key} must be a number`);
+    if (typeof value !== 'string' && typeof value !== 'number') {
+      throw new LoadBatchError(`Batch manifest expected.${key} must be a string or a number`);
     }
   }
   return manifest as unknown as BatchManifest;

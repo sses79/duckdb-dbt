@@ -79,6 +79,13 @@ async function tamperManifest(dir: string, field: 'data_file_sha256' | 'row_coun
   await writeFile(manifestFile, JSON.stringify(manifest));
 }
 
+async function tamperExpected(dir: string, expected: unknown): Promise<void> {
+  const manifestFile = join(dir, 'manifest.json');
+  const manifest = JSON.parse(await readFile(manifestFile, 'utf8')) as Record<string, unknown>;
+  manifest.expected = expected;
+  await writeFile(manifestFile, JSON.stringify(manifest));
+}
+
 describe('loadBatch', () => {
   it('loads a valid 120-event batch and records a succeeded pipeline run', async () => {
     const batchId = 'valid-120';
@@ -287,6 +294,87 @@ describe('loadBatch', () => {
         batchId,
       ]),
     ).toBe(0);
+  });
+
+  it('loads a manifest whose expected block mixes a string and a number', async () => {
+    const batchId = 'mixed-expected';
+    const dir = await mkdtemp(join(tmpdir(), 'loadBatch-'));
+    tempDirs.push(dir);
+    const events = Array.from({ length: 3 }, (_, index) => makeEvent(batchId, index));
+    await writeBatch({
+      events,
+      outputDir: dir,
+      batchId,
+      scenario: 'test',
+      expected: { corrected_document_id: 'doc-123', version: 2 },
+    });
+
+    const result = await loadBatch(connection, dir);
+
+    expect(result).toEqual({ status: 'loaded', batchId, rowsLoaded: 3 });
+    expect(
+      await countRows(
+        'SELECT count(*)::INTEGER AS n FROM raw.wellbeing_submission_events WHERE batch_id = $1',
+        [batchId],
+      ),
+    ).toBe(3);
+  });
+
+  it('keeps the expected block out of raw.loaded_batches', async () => {
+    const batchId = 'ledger-no-expected';
+    const dir = await mkdtemp(join(tmpdir(), 'loadBatch-'));
+    tempDirs.push(dir);
+    const events = Array.from({ length: 2 }, (_, index) => makeEvent(batchId, index));
+    await writeBatch({
+      events,
+      outputDir: dir,
+      batchId,
+      scenario: 'test',
+      expected: { corrected_document_id: 'doc-123', version: 2 },
+    });
+
+    await loadBatch(connection, dir);
+
+    const rows = (
+      await connection.runAndReadAll(
+        'SELECT batch_id, data_file, data_file_sha256, schema_version, row_count, distinct_event_count, scenario, loaded_at FROM raw.loaded_batches WHERE batch_id = $1',
+        [batchId],
+      )
+    ).getRowObjects();
+    expect(rows).toHaveLength(1);
+    const row = rows[0] as Record<string, DuckDBValue>;
+    expect(Object.keys(row).sort()).toEqual([
+      'batch_id',
+      'data_file',
+      'data_file_sha256',
+      'distinct_event_count',
+      'loaded_at',
+      'row_count',
+      'scenario',
+      'schema_version',
+    ]);
+  });
+
+  it('refuses expected values that are null, a boolean, an array, or an object', async () => {
+    const badValues: unknown[] = [null, true, [1], { nested: true }];
+    for (const [index, badValue] of badValues.entries()) {
+      const batchId = `bad-expected-${index}`;
+      const dir = await mkdtemp(join(tmpdir(), 'loadBatch-'));
+      tempDirs.push(dir);
+      const events = [makeEvent(batchId, 0)];
+      await writeBatch({ events, outputDir: dir, batchId, scenario: 'test', expected: {} });
+      await tamperExpected(dir, { current_documents: badValue });
+
+      const caught = await loadBatch(connection, dir).then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+      expect(caught).toBeInstanceOf(LoadBatchError);
+      expect((caught as Error).message).toBe(
+        'Batch manifest expected.current_documents must be a string or a number',
+      );
+    }
   });
 
   it('wraps unexpected database errors in LoadBatchError with the underlying message', async () => {
