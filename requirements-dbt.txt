@@ -1,2 +1,6 @@
 dbt-core==1.12.5
 dbt-duckdb==1.11.0
+# dbt-duckdb only requires duckdb>=1.0.0, so an unpinned CI install can resolve a
+# different DuckDB than @duckdb/node-api writes the same database file with. Keep
+# this in step with the @duckdb/node-api version in package.json.
+duckdb==1.5.5
