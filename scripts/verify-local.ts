@@ -12,6 +12,7 @@ import type { DuckDBConnection } from '@duckdb/node-api';
 
 import { writeBatch } from '../src/generator/batch.ts';
 import { buildSubmissionEvent } from '../src/generator/envelope.ts';
+import { buildMutationDeliveries } from '../src/generator/mutations.ts';
 import { parseSurveySource } from '../src/generator/source.ts';
 import type { SourceResponse } from '../src/generator/source.ts';
 import { buildSyntheticSurveyCsv } from '../src/generator/testing/syntheticSurvey.ts';
@@ -34,6 +35,8 @@ function stepError(name: string, error: unknown): Error {
 const workDir = mkdtempSync(join(tmpdir(), 'wellbeing-pipeline-'));
 try {
   let csv: string;
+  let baselineEvents: ReturnType<typeof buildSubmissionEvent>[] = [];
+  let firstMutationDir: string | null = null;
   console.log('pipeline: fixture');
   try {
     csv = buildSyntheticSurveyCsv({ rows: 1200, seed: 20260918 });
@@ -47,12 +50,13 @@ try {
   try {
     const survey = parseSurveySource(csv);
     responses = survey.responses;
-    const events = responses.map((response) =>
+    baselineEvents = responses.map((response) =>
       buildSubmissionEvent(response, {
         batchId: 'batch_pipeline_check',
         extractedAt: '2019-07-31T00:00:00.000Z',
       }),
     );
+    const events = baselineEvents;
     await writeBatch({
       events,
       outputDir: join(workDir, 'batch'),
@@ -88,10 +92,97 @@ try {
     if (reloaded.status !== 'already_loaded') {
       throw new Error(`expected status 'already_loaded', got '${reloaded.status}'`);
     }
+  } catch (error) {
+    throw stepError('reload', error);
+  }
+
+  console.log('pipeline: mutations');
+  try {
+    const deliveries = buildMutationDeliveries(baselineEvents.slice(0, 4));
+    const baseline = await connection.runAndReadAll(
+      'SELECT count(*)::INTEGER AS n FROM raw.wellbeing_submission_events',
+    );
+    const baselineRows = Number(baseline.getRowObjects()[0]?.n ?? 0);
+
+    for (const delivery of deliveries) {
+      const batchDir = join(workDir, 'mutations', delivery.batchId);
+      if (firstMutationDir === null) {
+        firstMutationDir = batchDir;
+      }
+      const manifest = await writeBatch({
+        events: delivery.events,
+        outputDir: batchDir,
+        batchId: delivery.batchId,
+        scenario: delivery.scenario,
+        expected: delivery.expected,
+      });
+      const loaded = await loadBatch(connection, batchDir);
+      if (loaded.status !== 'loaded') {
+        throw new Error(`expected status 'loaded', got '${loaded.status}'`);
+      }
+      if (loaded.rowsLoaded !== manifest.row_count) {
+        throw new Error(`expected ${manifest.row_count} rows loaded, got ${loaded.rowsLoaded}`);
+      }
+    }
+
+    const rows = await connection.runAndReadAll(
+      'SELECT count(*)::INTEGER AS n FROM raw.wellbeing_submission_events',
+    );
+    const rowCount = Number(rows.getRowObjects()[0]?.n ?? 0);
+    if (rowCount !== baselineRows + 7) {
+      throw new Error(`expected ${baselineRows + 7} rows after mutation deliveries, got ${rowCount}`);
+    }
+
+    const mutationBatchIds = deliveries.map((delivery) => delivery.batchId);
+    const placeholders = mutationBatchIds.map((_, index) => `$${index + 1}`).join(', ');
+    const batchRows = (
+      await connection.runAndReadAll(
+        `SELECT batch_id, count(*)::INTEGER AS n FROM raw.wellbeing_submission_events WHERE batch_id IN (${placeholders}) GROUP BY batch_id`,
+        mutationBatchIds,
+      )
+    ).getRowObjects();
+    const rowsByBatch = new Map<string, number>();
+    for (const row of batchRows) {
+      rowsByBatch.set(String(row.batch_id), Number(row.n ?? 0));
+    }
+    const expectedByBatch = new Map<string, number>();
+    for (const delivery of deliveries) {
+      expectedByBatch.set(delivery.batchId, delivery.events.length);
+    }
+    for (const [batchId, expectedCount] of expectedByBatch) {
+      const actualCount = rowsByBatch.get(batchId);
+      if (actualCount !== expectedCount) {
+        throw new Error(`expected ${expectedCount} mutation rows for ${batchId}, got ${String(actualCount)}`);
+      }
+    }
+  } catch (error) {
+    throw stepError('mutations', error);
+  }
+
+  console.log('pipeline: mutation reload');
+  try {
+    if (firstMutationDir === null) {
+      throw new Error('no mutation delivery was created');
+    }
+    const before = await connection.runAndReadAll(
+      'SELECT count(*)::INTEGER AS n FROM raw.wellbeing_submission_events',
+    );
+    const beforeCount = Number(before.getRowObjects()[0]?.n ?? 0);
+    const reloaded = await loadBatch(connection, firstMutationDir);
+    if (reloaded.status !== 'already_loaded') {
+      throw new Error(`expected status 'already_loaded', got '${reloaded.status}'`);
+    }
+    const after = await connection.runAndReadAll(
+      'SELECT count(*)::INTEGER AS n FROM raw.wellbeing_submission_events',
+    );
+    const afterCount = Number(after.getRowObjects()[0]?.n ?? 0);
+    if (afterCount !== beforeCount) {
+      throw new Error(`expected ${beforeCount} rows, got ${afterCount}`);
+    }
     connection.closeSync();
     instance.closeSync();
   } catch (error) {
-    throw stepError('reload', error);
+    throw stepError('mutation reload', error);
   }
 
   console.log('pipeline: dbt build');
