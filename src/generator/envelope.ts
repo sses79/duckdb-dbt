@@ -31,11 +31,11 @@ const PERIOD_STARTS: Record<string, number> = {
 const DAY_SECONDS = 86_400;
 const MAX_OFFSET_SECONDS = 50 * DAY_SECONDS;
 
-export interface SubmissionEvent {
+export interface SubmissionUpsertEvent {
   event_id: string;
   document_id: string;
   operation: 'upsert';
-  source_version: 1;
+  source_version: number;
   source_updated_at: string;
   extracted_at: string;
   schema_version: 'wellbeing-submission/1';
@@ -58,6 +58,25 @@ export interface SubmissionEvent {
     };
   };
 }
+
+export interface SubmissionDeleteEvent {
+  event_id: string;
+  document_id: string;
+  operation: 'delete';
+  source_version: number;
+  source_updated_at: string;
+  extracted_at: string;
+  schema_version: 'wellbeing-submission/1';
+  batch_id: string;
+  region: 'uk';
+  payload: {
+    trust_id: string;
+    school_id: string;
+    provenance: Record<string, string>;
+  };
+}
+
+export type SubmissionEvent = SubmissionUpsertEvent | SubmissionDeleteEvent;
 
 function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
@@ -82,7 +101,7 @@ function periodStart(surveyPeriod: string): number {
 export function buildSubmissionEvent(
   response: SourceResponse,
   options: { batchId: string; extractedAt: string },
-): SubmissionEvent {
+): SubmissionUpsertEvent {
   const documentId = idFromHash('doc_', sha256Hex(`${DOCUMENT_NAMESPACE}${response.sourceId}`));
   const eventId = idFromHash('evt_', sha256Hex(`${documentId}:${SOURCE_VERSION}:${OPERATION}`));
 

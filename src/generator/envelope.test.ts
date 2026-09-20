@@ -6,6 +6,10 @@ import {
   SURVEY_PERIODS,
   buildSubmissionEvent,
 } from './envelope.ts';
+import type {
+  SubmissionDeleteEvent,
+  SubmissionEvent,
+} from './envelope.ts';
 import { parseSurveySource } from './source.ts';
 import type { SourceResponse } from './source.ts';
 import { buildSyntheticSurveyCsv } from './testing/syntheticSurvey.ts';
@@ -56,6 +60,13 @@ function stringValues(value: unknown): string[] {
   }
   const entries = Array.isArray(value) ? value : Object.values(value);
   return entries.flatMap(stringValues);
+}
+
+function answersOf(event: SubmissionEvent): Record<string, string | null> | null {
+  if (event.operation === 'upsert') {
+    return event.payload.answers;
+  }
+  return null;
 }
 
 describe('buildSubmissionEvent', () => {
@@ -180,5 +191,57 @@ describe('buildSubmissionEvent', () => {
         (value) => value === 'generated_for_demo',
       ),
     ).toBe(true);
+  });
+});
+
+describe('SubmissionDeleteEvent', () => {
+  function deleteEvent(): SubmissionDeleteEvent {
+    return {
+      event_id: 'evt_0123456789abcdef01234567',
+      document_id: 'doc_0123456789abcdef01234567',
+      operation: 'delete',
+      source_version: 2,
+      source_updated_at: '2026-09-18T09:30:00.000Z',
+      extracted_at: OPTIONS.extractedAt,
+      schema_version: SCHEMA_VERSION,
+      batch_id: OPTIONS.batchId,
+      region: 'uk',
+      payload: {
+        trust_id: 'trust_north',
+        school_id: 'school_n01',
+        provenance: {
+          trust_id: 'generated_for_demo',
+          school_id: 'generated_for_demo',
+          document_id: 'generated_for_demo',
+        },
+      },
+    };
+  }
+
+  it('has no answers anywhere and survives a JSON round-trip', () => {
+    const event = deleteEvent();
+    expect(event.operation).toBe('delete');
+    expect(event.source_version).toBe(2);
+    expect(event.payload).toEqual({
+      trust_id: 'trust_north',
+      school_id: 'school_n01',
+      provenance: {
+        trust_id: 'generated_for_demo',
+        school_id: 'generated_for_demo',
+        document_id: 'generated_for_demo',
+      },
+    });
+    expect(keyNames(event)).not.toContain('answers');
+    expect(keyNames(event)).not.toContain('source_id');
+    expect(keyNames(event)).not.toContain('sourceId');
+    expect(keyNames(event)).not.toContain('source_line_number');
+    expect(keyNames(event)).not.toContain('sourceLineNumber');
+    expect(JSON.parse(JSON.stringify(event))).toEqual(event);
+  });
+
+  it('answersOf returns null for delete events and answers for upserts', () => {
+    const upsert = buildSubmissionEvent(first(syntheticResponses()), OPTIONS);
+    expect(answersOf(upsert)).toEqual(upsert.payload.answers);
+    expect(answersOf(deleteEvent())).toBeNull();
   });
 });
