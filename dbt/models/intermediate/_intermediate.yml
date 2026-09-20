@@ -23,6 +23,9 @@ models:
 unit_tests:
   - name: latest_higher_version_wins
     model: int_wellbeing_submission_latest
+    overrides:
+      macros:
+        is_incremental: false
     given:
       - input: ref('stg_wellbeing_submission_changes')
         rows:
