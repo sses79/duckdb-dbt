@@ -204,6 +204,78 @@ try {
     env
   );
 
+  console.log('pipeline: equivalence');
+  try {
+    const snapshotInstance = await DuckDBInstance.create(join(workDir, 'wellbeing.duckdb'));
+    const snapshotConnection = await snapshotInstance.connect();
+    try {
+      await snapshotConnection.run(
+        'create or replace table core.fct_equivalence_snapshot as select * from core.fct_wellbeing_response',
+      );
+      await snapshotConnection.run(
+        'create or replace table marts.mart_equivalence_snapshot as select * from marts.mart_school_wellbeing_trend',
+      );
+    } finally {
+      snapshotConnection.closeSync();
+      snapshotInstance.closeSync();
+    }
+
+    step(
+      'dbt build',
+      [
+        process.env.DBT_EXECUTABLE ?? 'dbt',
+        'build',
+        '--project-dir',
+        'dbt',
+        '--profiles-dir',
+        'dbt',
+        '--target-path',
+        join(workDir, 'dbt-target'),
+        '--log-path',
+        join(workDir, 'dbt-logs'),
+        '--full-refresh'
+      ],
+      env
+    );
+
+    const checkInstance = await DuckDBInstance.create(join(workDir, 'wellbeing.duckdb'));
+    const checkConnection = await checkInstance.connect();
+    try {
+      const comparisons = [
+        { relation: 'core.fct_wellbeing_response', snapshot: 'core.fct_equivalence_snapshot' },
+        { relation: 'marts.mart_school_wellbeing_trend', snapshot: 'marts.mart_equivalence_snapshot' },
+      ];
+      for (const comparison of comparisons) {
+        const fullRefreshOnly = await checkConnection.runAndReadAll(
+          `SELECT count(*)::INTEGER AS n FROM (SELECT * FROM ${comparison.relation} EXCEPT SELECT * FROM ${comparison.snapshot})`,
+        );
+        const fullRefreshOnlyCount = Number(fullRefreshOnly.getRowObjects()[0]?.n ?? 0);
+        if (fullRefreshOnlyCount !== 0) {
+          throw new Error(
+            `${comparison.relation} differs: ${fullRefreshOnlyCount} row(s) only in the full-refresh result`,
+          );
+        }
+        const incrementalOnly = await checkConnection.runAndReadAll(
+          `SELECT count(*)::INTEGER AS n FROM (SELECT * FROM ${comparison.snapshot} EXCEPT SELECT * FROM ${comparison.relation})`,
+        );
+        const incrementalOnlyCount = Number(incrementalOnly.getRowObjects()[0]?.n ?? 0);
+        if (incrementalOnlyCount !== 0) {
+          throw new Error(
+            `${comparison.relation} differs: ${incrementalOnlyCount} row(s) only in the incremental result`,
+          );
+        }
+      }
+      console.log('pipeline: equivalence: incremental and full-refresh results are equivalent');
+    } finally {
+      await checkConnection.run('drop table if exists core.fct_equivalence_snapshot');
+      await checkConnection.run('drop table if exists marts.mart_equivalence_snapshot');
+      checkConnection.closeSync();
+      checkInstance.closeSync();
+    }
+  } catch (error) {
+    throw stepError('equivalence', error);
+  }
+
   console.log('pipeline: export');
   try {
     const instance = await DuckDBInstance.create(join(workDir, 'wellbeing.duckdb'));
