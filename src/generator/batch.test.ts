@@ -109,6 +109,79 @@ describe('writeBatch', () => {
     expect(await readFile(join(dir, 'submissions.ndjson.gz'))).toEqual(gzipped);
     expect(await readFile(join(dir, 'manifest.json'), 'utf8')).toBe(manifestText);
   });
+
+  it('writes a manifest whose expected block mixes a string and a number', async () => {
+    const dir = await tempDir();
+    const { events } = buildEvents(5, 42);
+
+    const manifest = await writeBatch({
+      events,
+      outputDir: dir,
+      batchId: BATCH_ID,
+      scenario: 'initial_load',
+      expected: { current_documents: events.length, corrected_document_id: 'doc-mixed-42' },
+    });
+
+    expect(manifest.expected).toEqual({
+      current_documents: events.length,
+      corrected_document_id: 'doc-mixed-42',
+    });
+
+    const manifestText = JSON.parse(
+      await readFile(join(dir, 'manifest.json'), 'utf8'),
+    ) as BatchManifest;
+    expect(manifestText.expected).toEqual({
+      current_documents: events.length,
+      corrected_document_id: 'doc-mixed-42',
+    });
+  });
+
+  it('keeps the manifest key order when expected mixes a string and a number', async () => {
+    const dir = await tempDir();
+    const { events } = buildEvents(3, 11);
+
+    await writeBatch({
+      events,
+      outputDir: dir,
+      batchId: BATCH_ID,
+      scenario: 'initial_load',
+      expected: { current_documents: events.length, corrected_document_id: 'doc-order-11' },
+    });
+
+    const manifestText = await readFile(join(dir, 'manifest.json'), 'utf8');
+    expect(Object.keys(JSON.parse(manifestText) as BatchManifest)).toEqual([
+      'batch_id',
+      'schema_version',
+      'data_file',
+      'data_file_sha256',
+      'row_count',
+      'distinct_event_count',
+      'scenario',
+      'expected',
+    ]);
+  });
+
+  it('writes byte-identical outputs for the same events and a mixed expected block', async () => {
+    const dirA = await tempDir();
+    const dirB = await tempDir();
+    const { events } = buildEvents(8, 7);
+
+    const input = {
+      events,
+      batchId: BATCH_ID,
+      scenario: 'initial_load',
+      expected: { current_documents: events.length, corrected_document_id: 'doc-identical-7' },
+    };
+    await writeBatch({ ...input, outputDir: dirA });
+    await writeBatch({ ...input, outputDir: dirB });
+
+    expect(await readFile(join(dirA, 'submissions.ndjson.gz'))).toEqual(
+      await readFile(join(dirB, 'submissions.ndjson.gz')),
+    );
+    expect(await readFile(join(dirA, 'manifest.json'), 'utf8')).toBe(
+      await readFile(join(dirB, 'manifest.json'), 'utf8'),
+    );
+  });
 });
 
 describe('main', () => {

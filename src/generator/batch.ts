@@ -14,7 +14,7 @@ export interface BatchManifest {
   row_count: number;
   distinct_event_count: number;
   scenario: string;
-  expected: Record<string, number>;
+  expected: Record<string, string | number>;
 }
 
 const DATA_FILE = 'submissions.ndjson.gz';
@@ -34,7 +34,7 @@ export async function writeBatch(input: {
   outputDir: string;
   batchId: string;
   scenario: string;
-  expected: Record<string, number>;
+  expected: Record<string, string | number>;
 }): Promise<BatchManifest> {
   const { events, outputDir, batchId, scenario, expected } = input;
 
