@@ -36,3 +36,15 @@ seeds:
       - name: is_adverse
         tests:
           - not_null
+  - name: expected_mutation_batches
+    config:
+      column_types:
+        batch_id: varchar
+        expected_row_count: integer
+    columns:
+      - name: batch_id
+        tests:
+          - not_null
+      - name: expected_row_count
+        tests:
+          - not_null
