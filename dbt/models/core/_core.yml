@@ -40,6 +40,9 @@ models:
 unit_tests:
   - name: fact_flags_answered_and_adverse
     model: fct_wellbeing_response
+    overrides:
+      macros:
+        is_incremental: false
     given:
       - input: ref('int_wellbeing_answers')
         rows:
