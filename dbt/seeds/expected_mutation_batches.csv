@@ -1,0 +1,6 @@
+batch_id,expected_row_count
+batch_m2_01_new_inserts,2
+batch_m2_02_correction_duplicate,2
+batch_m2_03_late_older_version,1
+batch_m2_04_withdrawal,1
+batch_m2_replay_late_older,1
