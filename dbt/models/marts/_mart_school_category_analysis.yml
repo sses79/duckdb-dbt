@@ -1,0 +1,230 @@
+version: 2
+
+models:
+  - name: mart_school_category_analysis
+    description: >
+      One row per trust, school, survey period and indicator category, summarising
+      eligible and answering submissions, answered and missing question responses,
+      and adverse response rates against a trust-level benchmark. Rates are
+      suppressed when fewer than ten documents answer, and movement versus the
+      previous period is given in percentage points.
+    columns:
+      - name: trust_id
+        tests:
+          - not_null
+      - name: school_id
+        tests:
+          - not_null
+      - name: survey_period
+        tests:
+          - not_null
+      - name: category_code
+        tests:
+          - not_null
+
+unit_tests:
+  - name: suppresses_rates_when_fewer_than_ten_answering_submissions
+    model: mart_school_category_analysis
+    given:
+      - input: ref('fct_wellbeing_response')
+        rows:
+          - document_id: doc_1
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_1
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_1
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_confident
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_1
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_stressed
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_2
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_2
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_2
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_confident
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_2
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_stressed
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_3
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_3
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_3
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_confident
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_3
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_stressed
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_4
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_4
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_4
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_confident
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_4
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_stressed
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_5
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_5
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_5
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_confident
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_5
+            trust_id: trust_north
+            school_id: school_alpha
+            school_classification: State
+            survey_period: '2018-autumn'
+            question_code: feel_stressed
+            is_answered: true
+            is_adverse: false
+      - input: ref('indicator_catalog')
+        rows:
+          - question_code: feel_sad
+            category_code: emotional_wellbeing
+            category_label: Emotional wellbeing
+          - question_code: feel_lonely
+            category_code: emotional_wellbeing
+            category_label: Emotional wellbeing
+          - question_code: feel_confident
+            category_code: emotional_wellbeing
+            category_label: Emotional wellbeing
+          - question_code: feel_stressed
+            category_code: emotional_wellbeing
+            category_label: Emotional wellbeing
+    expect:
+      rows:
+        - trust_id: trust_north
+          school_id: school_alpha
+          school_classification: State
+          survey_period: '2018-autumn'
+          category_code: emotional_wellbeing
+          category_label: Emotional wellbeing
+          eligible_submission_count: 5
+          answering_submission_count: 5
+          indicator_count: 4
+          answered_question_response_count: 20
+          missing_question_response_count: 0
+          is_suppressed: true
+          adverse_question_response_count: null
+          adverse_question_response_rate: null
+          missing_question_response_rate: null
+          trust_answering_submission_count: 5
+          trust_answered_question_response_count: 20
+          trust_adverse_question_response_count: null
+          trust_adverse_question_response_rate: null
+          previous_adverse_question_response_count: null
+          previous_answered_question_response_count: null
+          previous_adverse_question_response_rate: null
+          period_change_pp: null
+          trust_gap_pp: null
