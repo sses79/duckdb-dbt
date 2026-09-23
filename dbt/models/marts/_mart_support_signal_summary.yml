@@ -1,0 +1,254 @@
+version: 2
+
+models:
+  - name: mart_support_signal_summary
+    description: >
+      One row per trust, school, survey period and question code summarising
+      how many eligible pupils submitted an adverse answer at school level.
+      A signal describes an aggregate survey pattern and is never a diagnosis,
+      a safeguarding determination or a recommendation about an individual.
+    columns:
+      - name: trust_id
+        tests:
+          - not_null
+      - name: school_id
+        tests:
+          - not_null
+      - name: survey_period
+        tests:
+          - not_null
+      - name: question_code
+        tests:
+          - not_null
+      - name: rule_version
+        tests:
+          - not_null
+
+unit_tests:
+  - name: school_grain_collapses_mixed_classifications
+    model: mart_support_signal_summary
+    given:
+      - input: ref('fct_wellbeing_response')
+        rows:
+          - document_id: doc_01
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_02
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_03
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_04
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_05
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_06
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_07
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_08
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_09
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: secondary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_10
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: secondary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_11
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: secondary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_12
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: secondary
+            survey_period: '2025-03-01'
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+      - input: ref('indicator_catalog')
+        rows:
+          - question_code: feel_sad
+            indicator_label: 'Most days or every day sad or upset'
+            category_code: emotional_wellbeing
+            category_label: 'Emotional wellbeing'
+    expect:
+      rows:
+        - trust_id: trust_north
+          school_id: school_1
+          school_classification: 'Mixed source classifications'
+          survey_period: '2025-03-01'
+          question_code: feel_sad
+          indicator_label: 'Most days or every day sad or upset'
+          category_code: emotional_wellbeing
+          category_label: 'Emotional wellbeing'
+          rule_version: 'support-signal/1'
+          eligible_submission_count: 12
+          answered_response_count: 12
+          missing_response_count: 0
+          is_suppressed: false
+          adverse_response_count: 3
+          adverse_response_rate: 0.25
+          signal_level: elevated
+
+  - name: school_suppressed_below_ten_answered
+    model: mart_support_signal_summary
+    given:
+      - input: ref('fct_wellbeing_response')
+        rows:
+          - document_id: doc_21
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_22
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_23
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_24
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_25
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_26
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_27
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_28
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_29
+            trust_id: trust_north
+            school_id: school_2
+            school_classification: primary
+            survey_period: '2025-03-01'
+            question_code: feel_lonely
+            is_answered: true
+            is_adverse: false
+      - input: ref('indicator_catalog')
+        rows:
+          - question_code: feel_lonely
+            indicator_label: 'Most days or every day lonely'
+            category_code: emotional_wellbeing
+            category_label: 'Emotional wellbeing'
+    expect:
+      rows:
+        - trust_id: trust_north
+          school_id: school_2
+          school_classification: primary
+          survey_period: '2025-03-01'
+          question_code: feel_lonely
+          indicator_label: 'Most days or every day lonely'
+          category_code: emotional_wellbeing
+          category_label: 'Emotional wellbeing'
+          rule_version: 'support-signal/1'
+          eligible_submission_count: 9
+          answered_response_count: 9
+          missing_response_count: 0
+          is_suppressed: true
+          adverse_response_count: null
+          adverse_response_rate: null
+          signal_level: null
