@@ -1,0 +1,216 @@
+version: 2
+
+models:
+  - name: mart_question_response_distribution
+    description: >
+      One row per trust, school, survey period, question and answer label giving
+      the count and rate of each answer label actually given among answered
+      responses. Whole questions with fewer than ten answered responses are
+      suppressed: their response counts and rates are null while the answered
+      count is kept.
+    columns:
+      - name: trust_id
+        tests:
+          - not_null
+      - name: school_id
+        tests:
+          - not_null
+      - name: school_classification
+        tests:
+          - not_null
+      - name: survey_period
+        tests:
+          - not_null
+      - name: question_code
+        tests:
+          - not_null
+      - name: indicator_label
+        tests:
+          - not_null
+      - name: category_code
+        tests:
+          - not_null
+      - name: category_label
+        tests:
+          - not_null
+      - name: answer_label
+        tests:
+          - not_null
+      - name: answer_order
+        tests:
+          - not_null
+      - name: answered_response_count
+        tests:
+          - not_null
+      - name: is_suppressed
+        tests:
+          - not_null
+      - name: response_count
+      - name: response_rate
+
+unit_tests:
+  - name: mart_question_response_distribution_suppresses_question_with_nine_answers
+    model: mart_question_response_distribution
+    given:
+      - input: ref('fct_wellbeing_response')
+        rows:
+          - document_id: doc_q1
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Never
+            answer_order: 1
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_q2
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Never
+            answer_order: 1
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_q3
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Never
+            answer_order: 1
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_q4
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Never
+            answer_order: 1
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_q5
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Never
+            answer_order: 1
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_q6
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Never
+            answer_order: 1
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_q7
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Every day
+            answer_order: 5
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_q8
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Every day
+            answer_order: 5
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_q9
+            trust_id: trust_north
+            school_id: school_north_1
+            school_classification: Academy
+            year_group: '9'
+            survey_period: '2023-11-01'
+            question_code: feel_sad
+            category: emotional_wellbeing
+            answer_label: Every day
+            answer_order: 5
+            is_answered: true
+            is_adverse: true
+      - input: ref('indicator_answer_catalog')
+        rows:
+          - question_code: feel_sad
+            question_label: Sad or upset
+            category: emotional_wellbeing
+            answer_label: Never
+            answer_order: 1
+            is_adverse: false
+          - question_code: feel_sad
+            question_label: Sad or upset
+            category: emotional_wellbeing
+            answer_label: Every day
+            answer_order: 5
+            is_adverse: true
+      - input: ref('indicator_catalog')
+        rows:
+          - question_code: feel_sad
+            indicator_label: Most days or every day sad or upset
+            category_code: emotional_wellbeing
+            category_label: Emotional wellbeing
+            direction: higher_is_worse
+            interpretation_note: Surveys where many pupils report feeling sad or upset most days or every day tend to show lower overall emotional wellbeing.
+    expect:
+      rows:
+        - trust_id: trust_north
+          school_id: school_north_1
+          school_classification: Academy
+          survey_period: '2023-11-01'
+          question_code: feel_sad
+          indicator_label: Most days or every day sad or upset
+          category_code: emotional_wellbeing
+          category_label: Emotional wellbeing
+          answer_label: Never
+          answer_order: 1
+          answered_response_count: 9
+          is_suppressed: true
+          response_count: null
+          response_rate: null
+        - trust_id: trust_north
+          school_id: school_north_1
+          school_classification: Academy
+          survey_period: '2023-11-01'
+          question_code: feel_sad
+          indicator_label: Most days or every day sad or upset
+          category_code: emotional_wellbeing
+          category_label: Emotional wellbeing
+          answer_label: Every day
+          answer_order: 5
+          answered_response_count: 9
+          is_suppressed: true
+          response_count: null
+          response_rate: null
