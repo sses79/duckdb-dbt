@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import type { DuckDBConnection } from '@duckdb/node-api';
 import { parse } from 'csv-parse/sync';
 
+import { buildTenantDashboard, buildTenantFreshness, validateTenantDashboard } from './dashboardJson.ts';
+
 export const TENANTS = ['trust_north', 'trust_south'] as const;
 
 export const TREND_COLUMNS = [
@@ -376,6 +378,49 @@ export async function exportTenants(connection: DuckDBConnection, options: Expor
           [runId, tenant, spec.fileName, expectedRowCount, sha256, publishedAt],
         );
       }
+
+      const freshness = await buildTenantFreshness(connection, tenant);
+
+      const freshnessPath = join(tenantPath, 'freshness.json');
+      writeFileSync(freshnessPath, `${JSON.stringify(freshness, null, 2)}\n`);
+      const freshnessBytes = readFileSync(freshnessPath);
+      const freshnessSha256 = createHash('sha256').update(freshnessBytes).digest('hex');
+      const freshnessRowCount = freshness === null ? 0 : 1;
+      files.push({
+        file_name: 'freshness.json',
+        row_count: freshnessRowCount,
+        sha256: freshnessSha256,
+      });
+      await connection.run(
+        'INSERT INTO audit.publications (run_id, tenant, file_name, row_count, sha256, created_at) VALUES ($1, $2, $3, $4, $5, $6::TIMESTAMPTZ)',
+        [runId, tenant, 'freshness.json', freshnessRowCount, freshnessSha256, publishedAt],
+      );
+
+      const dashboard = validateTenantDashboard(
+        JSON.parse(JSON.stringify(await buildTenantDashboard(connection, tenant, runId, EXPORT_FILES))),
+        tenant,
+        EXPORT_FILES,
+      );
+
+      const dashboardPath = join(tenantPath, 'dashboard.json');
+      writeFileSync(dashboardPath, `${JSON.stringify(dashboard, null, 2)}\n`);
+      const dashboardBytes = readFileSync(dashboardPath);
+      const dashboardSha256 = createHash('sha256').update(dashboardBytes).digest('hex');
+      const dashboardRowCount =
+        dashboard.indicator_analysis.length +
+        dashboard.category_analysis.length +
+        dashboard.change_drivers.length +
+        dashboard.question_response_distribution.length +
+        dashboard.support_signal_summary.length;
+      files.push({
+        file_name: 'dashboard.json',
+        row_count: dashboardRowCount,
+        sha256: dashboardSha256,
+      });
+      await connection.run(
+        'INSERT INTO audit.publications (run_id, tenant, file_name, row_count, sha256, created_at) VALUES ($1, $2, $3, $4, $5, $6::TIMESTAMPTZ)',
+        [runId, tenant, 'dashboard.json', dashboardRowCount, dashboardSha256, publishedAt],
+      );
 
       const manifest = {
         schema_version: SCHEMA_VERSION,

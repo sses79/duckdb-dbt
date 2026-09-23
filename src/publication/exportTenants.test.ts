@@ -54,16 +54,54 @@ beforeEach(async () => {
     if (spec.fileName === TREND_CSV_FILE) {
       continue;
     }
-    await connection.run(
-      `CREATE TABLE ${spec.relation} (${spec.columns.map((column) => `${column} VARCHAR`).join(', ')})`,
-    );
+    const columnDefinitions = spec.columns
+      .map((column) => {
+        if (column.startsWith('is_')) {
+          return `${column} BOOLEAN`;
+        }
+        if (column.endsWith('_count') || column.endsWith('_rank') || column === 'answer_order') {
+          return `${column} INTEGER`;
+        }
+        if (column.endsWith('_rate') || column.endsWith('_pp')) {
+          return `${column} DOUBLE`;
+        }
+        return `${column} VARCHAR`;
+      })
+      .join(', ');
+    await connection.run(`CREATE TABLE ${spec.relation} (${columnDefinitions})`);
     const sources = spec.tenantScoped ? [...TENANTS] : ['value'];
     for (const source of sources) {
       const values = spec.columns
-        .map((column) => `'${column === 'trust_id' ? source : 'value'}'`)
+        .map((column) => {
+          if (column.startsWith('is_')) {
+            return 'false';
+          }
+          if (column.endsWith('_count') || column.endsWith('_rank') || column === 'answer_order') {
+            return '1';
+          }
+          if (column.endsWith('_rate') || column.endsWith('_pp')) {
+            return '0.5';
+          }
+          return `'${column === 'trust_id' ? source : 'value'}'`;
+        })
         .join(', ');
       await connection.run(`INSERT INTO ${spec.relation} (${spec.columns.join(', ')}) VALUES (${values})`);
     }
+  }
+  await connection.run(
+    `CREATE TABLE marts.mart_data_freshness (
+      trust_id VARCHAR,
+      last_loaded_at TIMESTAMPTZ,
+      latest_source_updated_at TIMESTAMPTZ,
+      logical_event_count INTEGER
+    )`,
+  );
+  for (const tenant of TENANTS) {
+    await connection.run(
+      `INSERT INTO marts.mart_data_freshness (trust_id, last_loaded_at, latest_source_updated_at, logical_event_count) VALUES
+        ($1, '2025-01-01T00:00:00Z'::TIMESTAMPTZ, '2025-01-01T00:00:00Z'::TIMESTAMPTZ, 3)`,
+      [tenant],
+    );
   }
   exportRoot = mkdtempSync(join(tmpdir(), 'tenant-export-'));
 });
@@ -134,7 +172,7 @@ describe('exportTenants', () => {
       expect(manifest.tenant).toBe(tenant);
       expect(typeof manifest.created_at).toBe('string');
       const files = manifest.files as Array<Record<string, unknown>>;
-      expect(files).toHaveLength(EXPORT_FILES.length);
+      expect(files).toHaveLength(EXPORT_FILES.length + 2);
       expect(files[0]?.file_name).toBe(TREND_CSV_FILE);
       expect(files[0]?.row_count).toBe(rows.length);
       expect(files[0]?.sha256).toBe(createHash('sha256').update(csvBytes).digest('hex'));
@@ -143,7 +181,7 @@ describe('exportTenants', () => {
     const auditCount = await connection.runAndReadAll(
       'SELECT count(*)::INTEGER AS n FROM audit.publications',
     );
-    expect(Number(auditCount.getRowObjects()[0]?.n ?? 0)).toBe(TENANTS.length * EXPORT_FILES.length);
+    expect(Number(auditCount.getRowObjects()[0]?.n ?? 0)).toBe(TENANTS.length * (EXPORT_FILES.length + 2));
 
     const auditTenants = (
       await connection.runAndReadAll('SELECT DISTINCT tenant FROM audit.publications ORDER BY tenant')
@@ -197,6 +235,21 @@ describe('exportTenants', () => {
     await connection.run(
       `INSERT INTO ${MART_TABLE} (trust_id, school_id, school_classification, survey_period, question_code, category, eligible_submission_count, answered_response_count, missing_response_count, adverse_response_count, adverse_response_rate, is_suppressed) VALUES ('trust_north', NULL, 'Secondary', '2020-summer', 'feel_sad', 'emotional_wellbeing', 1, 1, 0, 1, 1.0, false)`,
     );
+    await expect(exportTenants(connection, { exportRoot, runId: 'run_b' })).rejects.toBeInstanceOf(
+      ExportTenantsError,
+    );
+
+    const current = JSON.parse(readFileSync(join(exportRoot, CURRENT_FILE), 'utf8')) as Record<string, unknown>;
+    expect(current.run_id).toBe('run_a');
+    expect(current.tenants).toEqual({
+      trust_north: 'run_id=run_a/tenant=trust_north',
+      trust_south: 'run_id=run_a/tenant=trust_south',
+    });
+  });
+
+  it('leaves current.json naming run_a when a later run fails on a missing freshness table', async () => {
+    await exportTenants(connection, { exportRoot, runId: 'run_a' });
+    await connection.run('DROP TABLE marts.mart_data_freshness');
     await expect(exportTenants(connection, { exportRoot, runId: 'run_b' })).rejects.toBeInstanceOf(
       ExportTenantsError,
     );
