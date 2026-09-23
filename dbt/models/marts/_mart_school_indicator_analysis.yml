@@ -1,0 +1,246 @@
+version: 2
+
+models:
+  - name: mart_school_indicator_analysis
+    description: >
+      One row per trust, school, survey period and catalogue question, with the
+      school's submission coverage, suppression, adverse response rate against a
+      trust benchmark, and movement compared with the previous survey period.
+    columns:
+      - name: trust_id
+        tests:
+          - not_null
+      - name: school_id
+        tests:
+          - not_null
+      - name: survey_period
+        tests:
+          - not_null
+      - name: question_code
+        tests:
+          - not_null
+
+unit_tests:
+  - name: below_ten_answered_is_suppressed
+    model: mart_school_indicator_analysis
+    given:
+      - input: ref('fct_wellbeing_response')
+        rows:
+          - document_id: doc_1
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_2
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_3
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_4
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_5
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_6
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_7
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_8
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_9
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+      - input: ref('indicator_catalog')
+        rows:
+          - question_code: feel_sad
+            indicator_label: Most days or every day sad or upset
+            category_code: emotional_wellbeing
+            category_label: Emotional wellbeing
+            direction: higher_is_worse
+            interpretation_note: Surveys where many pupils report feeling sad or upset most days or every day tend to show lower overall emotional wellbeing.
+    expect:
+      rows:
+        - trust_id: trust_north
+          school_id: school_1
+          survey_period: 2023-spring
+          question_code: feel_sad
+          eligible_submission_count: 9
+          answered_response_count: 9
+          missing_response_count: 0
+          is_suppressed: true
+          adverse_response_count: null
+          adverse_response_rate: null
+          movement_status: no_comparison
+
+  - name: suppression_uses_answered_not_eligible
+    model: mart_school_indicator_analysis
+    given:
+      - input: ref('fct_wellbeing_response')
+        rows:
+          - document_id: doc_1
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_2
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_3
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_4
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_5
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_6
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_7
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_8
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: false
+          - document_id: doc_9
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: true
+            is_adverse: true
+          - document_id: doc_10
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: false
+            is_adverse: false
+          - document_id: doc_11
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: false
+            is_adverse: false
+          - document_id: doc_12
+            trust_id: trust_north
+            school_id: school_1
+            school_classification: primary
+            survey_period: 2023-spring
+            question_code: feel_sad
+            is_answered: false
+            is_adverse: false
+      - input: ref('indicator_catalog')
+        rows:
+          - question_code: feel_sad
+            indicator_label: Most days or every day sad or upset
+            category_code: emotional_wellbeing
+            category_label: Emotional wellbeing
+            direction: higher_is_worse
+            interpretation_note: Surveys where many pupils report feeling sad or upset most days or every day tend to show lower overall emotional wellbeing.
+    expect:
+      rows:
+        - trust_id: trust_north
+          school_id: school_1
+          survey_period: 2023-spring
+          question_code: feel_sad
+          eligible_submission_count: 12
+          answered_response_count: 9
+          missing_response_count: 3
+          is_suppressed: true
+          adverse_response_count: null
+          adverse_response_rate: null
+          trust_answered_response_count: null
+          trust_adverse_response_count: null
+          trust_adverse_response_rate: null
