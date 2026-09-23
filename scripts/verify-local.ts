@@ -3,7 +3,8 @@
 // load it into DuckDB, prove reload is idempotent, then run dbt build on the same file.
 // dbt is DBT_EXECUTABLE when set (factory runs get a fixed PATH), otherwise `dbt` on PATH.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -16,7 +17,8 @@ import { buildMutationDeliveries } from '../src/generator/mutations.ts';
 import { parseSurveySource } from '../src/generator/source.ts';
 import type { SourceResponse } from '../src/generator/source.ts';
 import { buildSyntheticSurveyCsv } from '../src/generator/testing/syntheticSurvey.ts';
-import { exportTenants, TENANTS } from '../src/publication/exportTenants.ts';
+import { DashboardReaderError, readTenantDashboard } from '../src/dashboard/reader.ts';
+import { exportTenants, EXPORT_FILES, TENANTS } from '../src/publication/exportTenants.ts';
 import { applyFoundation } from '../src/warehouse/foundation.ts';
 import { loadBatch } from '../src/warehouse/loadBatch.ts';
 
@@ -316,6 +318,83 @@ try {
     instance.closeSync();
   } catch (error) {
     throw stepError('export', error);
+  }
+
+  console.log('pipeline: publication');
+  try {
+    const exportRoot = join(workDir, 'exports');
+    for (const tenant of TENANTS) {
+      const tenantPath = join(exportRoot, `run_id=pipeline_check/tenant=${tenant}`);
+      const manifestPath = join(tenantPath, 'publication_manifest.json');
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+        files: Array<{ file_name: string; row_count: number; sha256: string }>;
+      };
+      const expectedFiles = [...EXPORT_FILES.map((spec) => spec.fileName), 'freshness.json', 'dashboard.json'];
+      if (manifest.files.length !== expectedFiles.length) {
+        throw new Error(`expected ${expectedFiles.length} files in ${manifestPath}, got ${manifest.files.length}`);
+      }
+      for (let index = 0; index < expectedFiles.length; index += 1) {
+        const expected = expectedFiles[index];
+        const actual = manifest.files[index]?.file_name;
+        if (expected !== actual) {
+          throw new Error(`expected manifest file ${index} to be '${String(expected)}', got '${String(actual)}'`);
+        }
+      }
+      for (const entry of manifest.files) {
+        const filePath = join(tenantPath, entry.file_name);
+        const actualSha256 = createHash('sha256').update(readFileSync(filePath)).digest('hex');
+        if (actualSha256 !== entry.sha256) {
+          throw new Error(`expected sha256 of ${entry.file_name} to be ${entry.sha256}, got ${actualSha256}`);
+        }
+        if (entry.file_name !== 'freshness.json' && entry.row_count <= 0) {
+          throw new Error(`expected ${entry.file_name} row_count to be greater than 0, got ${entry.row_count}`);
+        }
+      }
+      const dashboard = await readTenantDashboard(exportRoot, tenant);
+      const sections = [
+        'indicator_analysis',
+        'category_analysis',
+        'change_drivers',
+        'question_response_distribution',
+        'support_signal_summary',
+      ] as const;
+      for (const section of sections) {
+        for (const row of dashboard[section]) {
+          if (row.trust_id !== tenant) {
+            throw new Error(`expected ${section} rows to have trust_id '${tenant}', got '${String(row.trust_id)}'`);
+          }
+        }
+      }
+      console.log(
+        `pipeline: publication ${tenant} ${sections.map((section) => `${section}=${dashboard[section].length}`).join(' ')}`,
+      );
+    }
+
+    const copyRoot = join(workDir, 'exports-copy');
+    cpSync(exportRoot, copyRoot, { recursive: true });
+    const copyCurrentPath = join(copyRoot, 'current.json');
+    const copyCurrent = JSON.parse(readFileSync(copyCurrentPath, 'utf8')) as {
+      run_id: string;
+      tenants: Record<string, string>;
+    };
+    copyCurrent.tenants.trust_north = 'run_id=pipeline_check/tenant=trust_south';
+    writeFileSync(copyCurrentPath, `${JSON.stringify(copyCurrent, null, 2)}\n`);
+    let refused = false;
+    try {
+      await readTenantDashboard(copyRoot, 'trust_north');
+    } catch (error) {
+      if (error instanceof DashboardReaderError) {
+        refused = true;
+      } else {
+        throw error;
+      }
+    }
+    if (!refused) {
+      throw new Error('expected readTenantDashboard to refuse the cross-tenant pointer');
+    }
+    console.log('pipeline: publication cross-tenant pointer was refused');
+  } catch (error) {
+    throw stepError('publication', error);
   }
   console.log('pipeline: ok');
 } catch (error) {
