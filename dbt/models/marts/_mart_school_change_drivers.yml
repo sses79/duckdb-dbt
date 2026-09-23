@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: mart_school_change_drivers
+    description: >
+      One row per trust, school, survey period, indicator category and question,
+      quantifying how much each question contributed to the school's category
+      adverse-response-rate movement between survey periods and ranking
+      questions by the absolute size of that contribution.
+    columns:
+      - name: trust_id
+        tests:
+          - not_null
+      - name: school_id
+        tests:
+          - not_null
+      - name: survey_period
+        tests:
+          - not_null
+      - name: category_code
+        tests:
+          - not_null
+      - name: question_code
+        tests:
+          - not_null
