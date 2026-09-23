@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: mart_data_freshness
+    description: >
+      One row per trust summarising the freshness of that trust's own wellbeing
+      submission events: the latest load time, latest source update time and
+      the number of logical events. Every figure is computed within a single
+      trust so tenant publications never reveal another tenant's event volume
+      or data freshness.
+    columns:
+      - name: trust_id
+        tests:
+          - unique
+          - not_null
+      - name: last_loaded_at
+        tests:
+          - not_null
+      - name: latest_source_updated_at
+        tests:
+          - not_null
+      - name: logical_event_count
+        tests:
+          - not_null
+
+unit_tests:
+  - name: freshness_is_scoped_per_trust
+    model: mart_data_freshness
+    given:
+      - input: ref('stg_wellbeing_submission_changes')
+        rows:
+          - event_id: evt_north_1
+            trust_id: trust_north
+            loaded_at: '2019-03-01 00:00:00+00'
+            source_updated_at: '2019-02-20 00:00:00+00'
+          - event_id: evt_north_2
+            trust_id: trust_north
+            loaded_at: '2019-01-10 00:00:00+00'
+            source_updated_at: '2019-01-05 00:00:00+00'
+          - event_id: evt_south_1
+            trust_id: trust_south
+            loaded_at: '2019-04-15 00:00:00+00'
+            source_updated_at: '2019-04-10 00:00:00+00'
+          - event_id: evt_null_1
+            trust_id: null
+            loaded_at: '2019-05-01 00:00:00+00'
+            source_updated_at: '2019-05-01 00:00:00+00'
+    expect:
+      rows:
+        - trust_id: trust_north
+          last_loaded_at: '2019-03-01 00:00:00+00'
+          latest_source_updated_at: '2019-02-20 00:00:00+00'
+          logical_event_count: 2
+        - trust_id: trust_south
+          last_loaded_at: '2019-04-15 00:00:00+00'
+          latest_source_updated_at: '2019-04-10 00:00:00+00'
+          logical_event_count: 1
