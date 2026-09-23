@@ -30,7 +30,7 @@ export PATH="$PWD/.venv/bin:$PATH"      # dbt must be on PATH
 ```bash
 node_modules/.bin/tsc --noEmit
 node_modules/.bin/vitest run --dir src --maxWorkers=1
-node scripts/verify-local.ts            # fixture -> generate -> load -> dbt build -> export, in a temp dir
+node scripts/verify-local.ts            # fixture -> generate -> load -> mutations -> dbt build -> incremental against full-refresh equivalence -> export -> publication with reader isolation, in a temp dir
 ```
 
 ## Local run
@@ -70,3 +70,57 @@ node scripts/verify-local.ts
 Outputs go to the ignored `generated-data/`, `warehouse/` and `exports/` directories;
 `exports/current.json` names the files for the latest publication. No survey data or anything
 derived from it is committed.
+
+## Analytical layer and publication
+
+Run `make export` (or `node src/warehouse/cli.ts export --run-id ID --export-root DIR --db FILE`
+directly) to build the analytical layer and publish per-tenant files under `exports/`. The five
+analytical marts are:
+
+- indicator analysis at school, period and question
+- category analysis at school, period and category
+- change drivers
+- response distribution
+- support signals
+
+Each reports `school_classification` as the school's single classification, or `Mixed source
+classifications` when it varies.
+
+### Metric definitions
+
+- Adverse-response rate is adverse answered over answered.
+- Period change in percentage points is 100 times current minus previous rate.
+- Trust benchmark is total trust adverse over total trust answered, weighted from counts and never
+  an average of school rates.
+- Trust gap is 100 times school rate minus trust benchmark.
+- Missing-response rate is missing over eligible; at 20 percent or more, coverage is `limited`.
+
+`movement_status` is `worsening` at +1 point or more, `improving` at -1 point or less, `stable`
+between, and `no_comparison` when either rate is missing. This is a descriptive rule, not a
+statistical-significance test.
+
+### Suppression and support signals
+
+A row is suppressed when fewer than ten people answered within that row's own grain, counting
+people rather than summed question responses. A suppressed row keeps its eligible, answered and
+missing counts and nulls every numerator, rate, change, gap, distribution count and driver
+contribution. Suppression counts answering people rather than eligible people, so no rate is ever
+published from fewer than ten people's answers.
+
+Support signals carry `rule_version` `support-signal/1` and a level of `elevated` at a rate of
+0.20 or more, `watch` at 0.10 or more, otherwise `lower`. A support signal describes an aggregate
+survey pattern and is never a diagnosis, a safeguarding determination or a recommendation about an
+individual.
+
+### Publication
+
+A tenant publication contains, in order: `school_wellbeing_trend.csv`, `indicator_analysis.csv`,
+`category_analysis.csv`, `change_drivers.csv`, `question_response_distribution.csv`,
+`support_signal_summary.csv`, `indicator_answer_catalog.csv`, `freshness.json` and
+`dashboard.json`, plus `publication_manifest.json` holding each file's row count and sha256.
+`current.json` is promoted only after every file of both tenants validates. Freshness is per trust.
+
+`src/dashboard/reader.ts` serves a tenant's `dashboard.json` through `readTenantDashboard`,
+`selectDashboard` and `dashboardSectionCsv`. It resolves only `trust_north` or `trust_south`,
+follows `current.json` only through a strictly validated pointer, refuses unknown filters and any
+filter value outside the document's own domains, and returns no row-level identifier.
