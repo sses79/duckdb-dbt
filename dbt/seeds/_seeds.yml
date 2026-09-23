@@ -36,6 +36,34 @@ seeds:
       - name: is_adverse
         tests:
           - not_null
+  - name: indicator_catalog
+    config:
+      column_types:
+        question_code: varchar
+        indicator_label: varchar
+        category_code: varchar
+        category_label: varchar
+        direction: varchar
+        interpretation_note: varchar
+    columns:
+      - name: question_code
+        tests:
+          - not_null
+      - name: indicator_label
+        tests:
+          - not_null
+      - name: category_code
+        tests:
+          - not_null
+      - name: category_label
+        tests:
+          - not_null
+      - name: direction
+        tests:
+          - not_null
+      - name: interpretation_note
+        tests:
+          - not_null
   - name: expected_mutation_batches
     config:
       column_types:
