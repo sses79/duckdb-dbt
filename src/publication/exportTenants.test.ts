@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { applyFoundation } from '../warehouse/foundation.ts';
 import {
+  EXPORT_FILES,
   ExportTenantsError,
   TENANTS,
   TREND_COLUMNS,
@@ -49,6 +50,21 @@ beforeEach(async () => {
       ('trust_north', 'school_b', 'Secondary', '2018-autumn', 'feel_sad', 'emotional_wellbeing', 10, 9, 1, NULL, NULL, true),
       ('trust_south', 'school_c', 'Primary', '2019-spring', 'feel_worried', 'emotional_wellbeing', 20, 18, 2, 5, 0.25, false)`,
   );
+  for (const spec of EXPORT_FILES) {
+    if (spec.fileName === TREND_CSV_FILE) {
+      continue;
+    }
+    await connection.run(
+      `CREATE TABLE ${spec.relation} (${spec.columns.map((column) => `${column} VARCHAR`).join(', ')})`,
+    );
+    const sources = spec.tenantScoped ? [...TENANTS] : ['value'];
+    for (const source of sources) {
+      const values = spec.columns
+        .map((column) => `'${column === 'trust_id' ? source : 'value'}'`)
+        .join(', ');
+      await connection.run(`INSERT INTO ${spec.relation} (${spec.columns.join(', ')}) VALUES (${values})`);
+    }
+  }
   exportRoot = mkdtempSync(join(tmpdir(), 'tenant-export-'));
 });
 
@@ -118,7 +134,7 @@ describe('exportTenants', () => {
       expect(manifest.tenant).toBe(tenant);
       expect(typeof manifest.created_at).toBe('string');
       const files = manifest.files as Array<Record<string, unknown>>;
-      expect(files).toHaveLength(1);
+      expect(files).toHaveLength(EXPORT_FILES.length);
       expect(files[0]?.file_name).toBe(TREND_CSV_FILE);
       expect(files[0]?.row_count).toBe(rows.length);
       expect(files[0]?.sha256).toBe(createHash('sha256').update(csvBytes).digest('hex'));
@@ -127,10 +143,10 @@ describe('exportTenants', () => {
     const auditCount = await connection.runAndReadAll(
       'SELECT count(*)::INTEGER AS n FROM audit.publications',
     );
-    expect(Number(auditCount.getRowObjects()[0]?.n ?? 0)).toBe(TENANTS.length);
+    expect(Number(auditCount.getRowObjects()[0]?.n ?? 0)).toBe(TENANTS.length * EXPORT_FILES.length);
 
     const auditTenants = (
-      await connection.runAndReadAll('SELECT tenant FROM audit.publications ORDER BY tenant')
+      await connection.runAndReadAll('SELECT DISTINCT tenant FROM audit.publications ORDER BY tenant')
     ).getRowObjects();
     expect(auditTenants.map((row) => String(row.tenant))).toEqual(['trust_north', 'trust_south']);
 
