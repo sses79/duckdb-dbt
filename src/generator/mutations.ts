@@ -72,16 +72,17 @@ function differingDocumentedAnswer(question: Question, excluded: readonly string
 function mutationAnswers(
   subject: SubmissionUpsertEvent,
 ): { question: Question; corrected: string; late: string } {
-  for (const question of QUESTIONS) {
-    const current = subject.payload.answers[question.questionCode];
-    const corrected = differingDocumentedAnswer(question, current === null ? [] : [current]);
-    const late = differingDocumentedAnswer(
-      question,
-      current === null ? [corrected] : [current, corrected],
-    );
-    return { question, corrected, late };
+  const question = QUESTIONS[0];
+  if (question === undefined) {
+    throw new Error('No question available for baseline mutation');
   }
-  throw new Error('No question available for baseline mutation');
+  const current = subject.payload.answers[question.questionCode];
+  const corrected = differingDocumentedAnswer(question, current === null ? [] : [current]);
+  const late = differingDocumentedAnswer(
+    question,
+    current === null ? [corrected] : [current, corrected],
+  );
+  return { question, corrected, late };
 }
 
 function buildNewInsert(
