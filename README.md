@@ -73,8 +73,9 @@ derived from it is committed.
 
 ## Analytical layer and publication
 
-Run `make export` (or `node src/warehouse/cli.ts export --run-id ID --export-root DIR --db FILE`
-directly) to build the analytical layer and publish per-tenant files under `exports/`. The five
+Run `make export` to build the analytical layer and publish per-tenant files under `exports/`: it
+runs `dbt build` first, then the export. `node src/warehouse/cli.ts export --run-id ID --export-root
+DIR --db FILE` only publishes; it reads a warehouse that `dbt build` has already built. The five
 analytical marts are:
 
 - indicator analysis at school, period and question
