@@ -57,6 +57,6 @@ jobs:
         run: node_modules/.bin/vitest run --dir apps/dashboard --maxWorkers=1 --passWithNoTests
 
       - name: dashboard-build
-        run: node_modules/.bin/next build apps/dashboard
+        run: node_modules/.bin/next build --webpack apps/dashboard
         env:
           NEXT_TELEMETRY_DISABLED: "1"
