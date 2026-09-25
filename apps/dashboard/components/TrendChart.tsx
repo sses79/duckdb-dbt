@@ -113,7 +113,15 @@ export function TrendChart({ trend, indicatorLabel }: { trend: DashboardTrend; i
             className="dash-axis-label dash-axis-label-period"
             x={x(index)}
             y={VIEWBOX_HEIGHT - 12}
-            textAnchor="middle"
+            textAnchor={
+              periods.length <= 1
+                ? 'middle'
+                : index === 0
+                  ? 'start'
+                  : index === periods.length - 1
+                    ? 'end'
+                    : 'middle'
+            }
           >
             {formatPeriod(period)}
           </text>
