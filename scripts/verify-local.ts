@@ -17,6 +17,7 @@ import { buildMutationDeliveries } from '../src/generator/mutations.ts';
 import { parseSurveySource } from '../src/generator/source.ts';
 import type { SourceResponse } from '../src/generator/source.ts';
 import { buildSyntheticSurveyCsv } from '../src/generator/testing/syntheticSurvey.ts';
+import { handleDashboardCsv, handleDashboardJson } from '../src/dashboard/http.ts';
 import { DashboardReaderError, readTenantDashboard } from '../src/dashboard/reader.ts';
 import { exportTenants, EXPORT_FILES, TENANTS } from '../src/publication/exportTenants.ts';
 import { applyFoundation } from '../src/warehouse/foundation.ts';
@@ -395,6 +396,166 @@ try {
     console.log('pipeline: publication cross-tenant pointer was refused');
   } catch (error) {
     throw stepError('publication', error);
+  }
+
+  console.log('pipeline: dashboard');
+  try {
+    const exportRoot = join(workDir, 'exports');
+    const sections = [
+      'indicator_analysis',
+      'category_analysis',
+      'change_drivers',
+      'question_response_distribution',
+      'support_signal_summary',
+    ] as const;
+    const badQueries = [
+      '?tenant=trust_south',
+      '?trust_id=trust_south',
+      '?school=..%2Fetc',
+      '?school=a&school=b',
+      '?unknown=1',
+    ];
+
+    function findForeignSchoolCode(
+      tenantJson: Record<string, Array<Record<string, unknown>>>,
+      otherJson: Record<string, Array<Record<string, unknown>>>,
+    ): string | undefined {
+      const present = new Set<string>();
+      for (const section of sections) {
+        for (const row of tenantJson[section] ?? []) {
+          for (const value of Object.values(row)) {
+            if (typeof value === 'string' && value !== '') {
+              present.add(value);
+            }
+          }
+        }
+      }
+      const candidates: string[] = [];
+      for (const section of sections) {
+        for (const row of otherJson[section] ?? []) {
+          for (const key of ['school_code', 'school_id'] as const) {
+            const value = row[key];
+            if (typeof value === 'string' && value !== '' && !present.has(value)) {
+              candidates.push(value);
+            }
+          }
+          for (const value of Object.values(row)) {
+            if (typeof value === 'string' && value !== '' && !present.has(value)) {
+              candidates.push(value);
+            }
+          }
+        }
+      }
+      return candidates[0];
+    }
+
+    for (const tenant of TENANTS) {
+      const env = { DASHBOARD_TENANT: tenant, DASHBOARD_EXPORT_ROOT: exportRoot };
+      let refused = 0;
+
+      const jsonResponse = await handleDashboardJson(new Request('http://dashboard.check/api'), env);
+      const jsonStatus = jsonResponse.status;
+      const jsonBody = await jsonResponse.text();
+      if (jsonStatus !== 200) {
+        throw new Error(`dashboard ${tenant}: expected 200 for JSON request with no query, got ${jsonStatus}`);
+      }
+      const json = JSON.parse(jsonBody) as Record<string, Array<Record<string, unknown>>>;
+      for (const section of sections) {
+        for (const row of json[section] ?? []) {
+          if (row.trust_id !== tenant) {
+            throw new Error(
+              `dashboard ${tenant}: expected ${section} row to have trust_id '${tenant}', got '${String(row.trust_id)}'`,
+            );
+          }
+          if (row.is_suppressed === true && (row.adverse_response_rate != null || row.response_rate != null)) {
+            throw new Error(`dashboard ${tenant}: suppressed row in ${section} must not expose response rates`);
+          }
+        }
+      }
+      if (jsonBody.includes('document_id') || jsonBody.includes('event_id')) {
+        throw new Error(`dashboard ${tenant}: JSON body must not contain document_id or event_id`);
+      }
+
+      const csvResponse = await handleDashboardCsv(
+        new Request('http://dashboard.check/api?section=indicator_analysis'),
+        env,
+      );
+      const csvStatus = csvResponse.status;
+      const csvBody = await csvResponse.text();
+      if (csvStatus !== 200) {
+        throw new Error(`dashboard ${tenant}: expected 200 for CSV request, got ${csvStatus}`);
+      }
+      const csvContentType = csvResponse.headers.get('content-type') ?? '';
+      if (!csvContentType.startsWith('text/csv')) {
+        throw new Error(`dashboard ${tenant}: expected content-type to start with 'text/csv', got '${csvContentType}'`);
+      }
+      const headerLine = csvBody.split('\n')[0] ?? '';
+      if (!headerLine.startsWith('trust_id')) {
+        throw new Error(`dashboard ${tenant}: expected CSV header to begin with 'trust_id', got '${headerLine}'`);
+      }
+
+      for (const query of badQueries) {
+        const response = await handleDashboardJson(new Request('http://dashboard.check/api' + query), env);
+        const body = await response.text();
+        if (response.status !== 400) {
+          throw new Error(`dashboard ${tenant}: expected 400 for query '${query}', got ${response.status}`);
+        }
+        if (body.includes(exportRoot) || body.includes(workDir)) {
+          throw new Error(`dashboard ${tenant}: query '${query}' body leaked exportRoot or workDir`);
+        }
+        refused += 1;
+      }
+
+      const otherTenant = TENANTS.find((candidate) => candidate !== tenant);
+      if (otherTenant === undefined) {
+        throw new Error(`dashboard ${tenant}: expected another tenant in TENANTS`);
+      }
+      const otherResponse = await handleDashboardJson(
+        new Request('http://dashboard.check/api'),
+        { DASHBOARD_TENANT: otherTenant, DASHBOARD_EXPORT_ROOT: exportRoot },
+      );
+      const otherBody = await otherResponse.text();
+      if (otherResponse.status !== 200) {
+        throw new Error(
+          `dashboard ${tenant}: expected 200 for ${otherTenant}'s JSON request, got ${otherResponse.status}`,
+        );
+      }
+      const otherJson = JSON.parse(otherBody) as Record<string, Array<Record<string, unknown>>>;
+      const otherSchool = findForeignSchoolCode(json, otherJson);
+      if (otherSchool === undefined) {
+        throw new Error(`dashboard ${tenant}: no school code found in ${otherTenant}'s document`);
+      }
+      const schoolQuery = '?school=' + encodeURIComponent(otherSchool);
+      const schoolResponse = await handleDashboardJson(new Request('http://dashboard.check/api' + schoolQuery), env);
+      const schoolBody = await schoolResponse.text();
+      if (schoolResponse.status !== 400) {
+        throw new Error(
+          `dashboard ${tenant}: expected 400 for school '${otherSchool}' from ${otherTenant} (${schoolQuery}), got ${schoolResponse.status}`,
+        );
+      }
+      if (schoolBody.includes(exportRoot) || schoolBody.includes(workDir)) {
+        throw new Error(`dashboard ${tenant}: query '${schoolQuery}' body leaked exportRoot or workDir`);
+      }
+      refused += 1;
+
+      console.log(`pipeline: dashboard ${tenant} json=${jsonStatus} csv=${csvStatus} refused=${refused}`);
+    }
+
+    const copyRoot = join(workDir, 'exports-copy');
+    const crossTenantResponse = await handleDashboardJson(
+      new Request('http://dashboard.check/api'),
+      { DASHBOARD_TENANT: 'trust_north', DASHBOARD_EXPORT_ROOT: copyRoot },
+    );
+    const crossTenantBody = await crossTenantResponse.text();
+    if (crossTenantResponse.status !== 503) {
+      throw new Error(`dashboard trust_north: expected 503 for cross-tenant pointer, got ${crossTenantResponse.status}`);
+    }
+    if (crossTenantBody.includes(exportRoot) || crossTenantBody.includes(workDir)) {
+      throw new Error('dashboard trust_north: cross-tenant pointer body leaked exportRoot or workDir');
+    }
+    console.log('pipeline: dashboard cross-tenant pointer was refused');
+  } catch (error) {
+    throw stepError('dashboard', error);
   }
   console.log('pipeline: ok');
 } catch (error) {
