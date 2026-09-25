@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const MAKE_TARGETS = ['help', 'check', 'generate', 'load', 'build', 'export', 'all'] as const;
+const MAKE_TARGETS = ['help', 'check', 'generate', 'load', 'build', 'export', 'all', 'dashboard'] as const;
 
 describe('local runbook', () => {
   it('declares exactly the runbook targets as .PHONY', () => {
