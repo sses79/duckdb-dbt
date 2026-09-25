@@ -89,13 +89,53 @@ describe('DistributionChart', () => {
       <DistributionChart distribution={view.distribution} indicatorLabel={view.indicator.label} />,
     );
     expect(view.distribution.suppressed).toBe(false);
+    expect(view.distribution.school).toBe('school_n01');
     expect(html).toContain('role="img"');
     expect(html).toContain(`<title>${view.indicator.label}</title>`);
+    expect(html).toContain('viewBox="0 0 544 ');
+    expect(html).toContain(`${view.indicator.label} · school_n01`);
     const rects = html.match(/<rect/g) ?? [];
     expect(rects).toHaveLength(view.distribution.answers.length);
     for (const answer of view.distribution.answers) {
       expect(html).toContain(`${answer.label}: ${formatRate(answer.rate)}`);
     }
+  });
+
+  it('names school_n02 when it is selected in a non-suppressed period', () => {
+    const document = buildFixtureDashboard('trust_north');
+    const period = document.filters.periods.find((candidate) => {
+      const candidateView = buildDashboardView(
+        document,
+        resolveSelection(document, { school: 'school_n02', period: candidate }),
+      );
+      return !candidateView.distribution.suppressed;
+    });
+    expect(period).toBeDefined();
+    const view = buildDashboardView(
+      document,
+      resolveSelection(document, { school: 'school_n02', period: period! }),
+    );
+    const html = renderToStaticMarkup(
+      <DistributionChart distribution={view.distribution} indicatorLabel={view.indicator.label} />,
+    );
+    expect(view.distribution.suppressed).toBe(false);
+    expect(view.distribution.school).toBe('school_n02');
+    expect(html).toContain(`${view.indicator.label} · school_n02`);
+  });
+
+  it('scales a rate of 0.5 to a 136-unit bar at one unit per pixel', () => {
+    const html = renderToStaticMarkup(
+      <DistributionChart
+        distribution={{
+          school: 'school_n01',
+          suppressed: false,
+          answers: [{ label: 'No', order: 1, count: 50, rate: 0.5 }],
+        }}
+        indicatorLabel="Feeling angry"
+      />,
+    );
+    expect(html).toContain('viewBox="0 0 544 ');
+    expect(html).toContain('width="136"');
   });
 });
 
