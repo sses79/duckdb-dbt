@@ -38,6 +38,7 @@ paths:
     - scripts/**
     - dbt/**
     - infra/duckdb/**
+    - apps/dashboard/**
     - README.md
     - Makefile
   denied:
@@ -57,6 +58,8 @@ paths:
     - pnpm-lock.yaml
     - requirements-dbt.txt
     - dbt/profiles.yml
+    - apps/dashboard/next.config.ts
+    - apps/dashboard/tsconfig.json
 
 commands:
   typecheck:
@@ -90,10 +93,39 @@ commands:
     validation_kind: generic
     evidence_outputs: []
 
+  # The Next.js dashboard (slice 4). Its components are TSX, which the root tsconfig does not
+  # cover, so they get their own test run; `next build` type-checks the app with its own tsconfig
+  # and fails on any type error.
+  dashboard-test:
+    argv:
+      - node_modules/.bin/vitest
+      - run
+      - --dir
+      - apps/dashboard
+      - --maxWorkers=1
+      - --passWithNoTests
+    timeout_seconds: 300
+    idempotent: true
+    allowed_hosts: []
+    validation_kind: test
+    evidence_outputs: []
+  dashboard-build:
+    argv:
+      - node_modules/.bin/next
+      - build
+      - apps/dashboard
+    timeout_seconds: 300
+    idempotent: true
+    allowed_hosts: []
+    validation_kind: generic
+    evidence_outputs: []
+
 required_checks:
   - typecheck
   - test
   - pipeline
+  - dashboard-test
+  - dashboard-build
 
 environment:
   # The factory gives checks a fixed PATH, so the pipeline check finds dbt through this
