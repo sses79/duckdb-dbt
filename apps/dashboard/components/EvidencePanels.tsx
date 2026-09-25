@@ -8,10 +8,10 @@ import { formatPp, formatRate } from '../lib/format.ts';
 export const NON_DIAGNOSTIC_NOTICE =
   "These signals summarise aggregate survey answers. They do not identify a condition, determine any individual pupil's need, or replace safeguarding and professional judgement.";
 
-const BAR_MAX_WIDTH = 100;
+const BAR_MAX_WIDTH = 272;
 const BAR_HEIGHT = 14;
 const BAR_GAP = 6;
-const SVG_WIDTH = 280;
+const SVG_WIDTH = 544;
 
 export function DriversTable({
   rows,
@@ -67,7 +67,9 @@ export function DistributionChart({
   const chartHeight = count === 0 ? 0 : count * (BAR_HEIGHT + BAR_GAP) - BAR_GAP;
   return (
     <figure className="dash-figure">
-      <figcaption className="dash-heading">{indicatorLabel}</figcaption>
+      <figcaption className="dash-heading">
+        {indicatorLabel} · {distribution.school}
+      </figcaption>
       <svg
         role="img"
         className="dash-distribution-chart"
