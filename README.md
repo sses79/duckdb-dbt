@@ -46,6 +46,7 @@ make build     # run dbt build over the DuckDB warehouse
 make export    # write per-tenant exports under exports/
 make load-mutations # load the five mutation deliveries into warehouse/wellbeing.duckdb
 make all       # run generate -> load -> build -> export
+make dashboard TENANT=trust_north # run the dashboard dev server for a trust
 ```
 
 ### Mutation deliveries
@@ -125,3 +126,32 @@ A tenant publication contains, in order: `school_wellbeing_trend.csv`, `indicato
 `selectDashboard` and `dashboardSectionCsv`. It resolves only `trust_north` or `trust_south`,
 follows `current.json` only through a strictly validated pointer, refuses unknown filters and any
 filter value outside the document's own domains, and returns no row-level identifier.
+
+## Dashboard
+
+Run `make export` first, then `make dashboard TENANT=trust_north` or `make dashboard
+TENANT=trust_south`, and open http://localhost:3000.
+
+The trust comes only from `DASHBOARD_TENANT` on the server, which has no default; a `tenant` or
+`trust_id` query parameter is refused like any unknown filter; and one deployment serves one trust.
+
+Every read goes through `src/dashboard/reader.ts`, which opens only the trust's current
+publication named by `current.json`, so the page and the APIs receive aggregate rows only and never
+the DuckDB file, raw events or a row-level identifier.
+
+The page is server-rendered with no client-side data fetching, and filters are a plain GET form
+over the document's own values; an invalid selection or an unavailable publication shows a fixed
+message without error details.
+
+- `GET /api/dashboard` returns the selected aggregate rows as JSON.
+- `GET /api/export?section=NAME` returns one of `indicator_analysis`, `category_analysis`,
+  `change_drivers`, `question_response_distribution` or `support_signal_summary` as formula-safe
+  CSV.
+
+Both refuse a bad query with 400 and an unavailable publication with 503.
+
+Suppressed values are null in JSON, empty in CSV and shown as `Suppressed` on the page, and support
+signals describe aggregate survey patterns, never an individual pupil.
+
+`make check` also runs the dashboard tests and `next build --webpack`, and the pipeline check drives
+the dashboard handlers for both trusts, including hostile queries and a cross-trust pointer.
