@@ -52,3 +52,11 @@ jobs:
 
       - name: pipeline
         run: node scripts/verify-local.ts
+
+      - name: dashboard-test
+        run: node_modules/.bin/vitest run --dir apps/dashboard --maxWorkers=1 --passWithNoTests
+
+      - name: dashboard-build
+        run: node_modules/.bin/next build apps/dashboard
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

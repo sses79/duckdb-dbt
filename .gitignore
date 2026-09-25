@@ -23,3 +23,7 @@ dbt/.user.yml
 .factory/artifacts/
 .factory/queue.sqlite
 .DS_Store
+
+# Next.js dashboard build output
+/apps/dashboard/.next/
+/apps/dashboard/next-env.d.ts
