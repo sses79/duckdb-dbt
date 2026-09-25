@@ -7,13 +7,13 @@ export function FilterForm({ options, selection }: { options: DashboardViewOptio
     <form method="get" action="/" className="dash-filter-form">
       <label className="dash-filter-field">
         <span className="dash-filter-label">Indicator</span>
-        <select name="question" className="dash-filter-select">
+        <select name="question" className="dash-filter-select" defaultValue={selection.question}>
           {options.categories.map((category) => (
             <optgroup key={category.code} label={category.label}>
               {options.questions
                 .filter((question) => question.category === category.code)
                 .map((question) => (
-                  <option key={question.code} value={question.code} selected={question.code === selection.question}>
+                  <option key={question.code} value={question.code}>
                     {question.label}
                   </option>
                 ))}
@@ -23,9 +23,9 @@ export function FilterForm({ options, selection }: { options: DashboardViewOptio
       </label>
       <label className="dash-filter-field">
         <span className="dash-filter-label">Period</span>
-        <select name="period" className="dash-filter-select">
+        <select name="period" className="dash-filter-select" defaultValue={selection.period}>
           {options.periods.map((period) => (
-            <option key={period} value={period} selected={period === selection.period}>
+            <option key={period} value={period}>
               {formatPeriod(period)}
             </option>
           ))}
@@ -33,10 +33,10 @@ export function FilterForm({ options, selection }: { options: DashboardViewOptio
       </label>
       <label className="dash-filter-field">
         <span className="dash-filter-label">School</span>
-        <select name="school" className="dash-filter-select">
-          <option value="" selected={selection.school === null}>All schools</option>
+        <select name="school" className="dash-filter-select" defaultValue={selection.school ?? ''}>
+          <option value="">All schools</option>
           {options.schools.map((school) => (
-            <option key={school.code} value={school.code} selected={school.code === selection.school}>
+            <option key={school.code} value={school.code}>
               {school.code} — {school.label}
             </option>
           ))}
