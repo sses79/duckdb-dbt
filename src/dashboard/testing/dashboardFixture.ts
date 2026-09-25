@@ -19,7 +19,7 @@ export const FIXTURE_PERIODS = ['2018-autumn', '2019-spring'] as const;
 const [PREVIOUS_PERIOD, LATEST_PERIOD] = FIXTURE_PERIODS;
 
 const DIRECTION = 'higher_is_worse';
-const FIXTURE_RULE_VERSION = 'signal-rules-v1';
+const FIXTURE_RULE_VERSION = 'support-signal/1';
 
 interface FixtureQuestion {
   readonly code: string;
@@ -582,7 +582,7 @@ function changeDriverRow(spec: ExportFileSpec, ctx: CohortContext): DashboardRow
     interpretation_note: ctx.question.interpretation_note,
     eligible_submission_count: ctx.cohort.eligible,
     is_suppressed: ctx.cohort.suppressed,
-    adverse_response_rate: roundTo(ctx.cohort.adverse / ctx.cohort.answered, 4),
+    adverse_response_rate: ctx.cohort.suppressed ? null : roundTo(ctx.cohort.adverse / ctx.cohort.answered, 4),
     previous_adverse_response_rate: ctx.previousRate,
     indicator_change_pp: indicatorChangePp(ctx),
     category_change_pp: categoryChangePp(ctx),

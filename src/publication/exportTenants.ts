@@ -165,7 +165,9 @@ export const EXPORT_FILES: readonly ExportFileSpec[] = [
       'category_code',
       'question_code',
     ],
-    suppressedColumns: ['category_change_contribution_pp'],
+    // A driver row is suppressed when its indicator cohort is, so the indicator's own rate and change
+    // are nulled with the contribution; category_change_pp stays, as the category is its own cohort.
+    suppressedColumns: ['adverse_response_rate', 'indicator_change_pp', 'category_change_contribution_pp'],
     tenantScoped: true,
     orderBy: ['school_id', 'school_classification', 'survey_period', 'category_code', 'question_code'],
   },
