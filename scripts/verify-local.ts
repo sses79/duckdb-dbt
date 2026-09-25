@@ -17,6 +17,7 @@ import { buildMutationDeliveries } from '../src/generator/mutations.ts';
 import { parseSurveySource } from '../src/generator/source.ts';
 import type { SourceResponse } from '../src/generator/source.ts';
 import { buildSyntheticSurveyCsv } from '../src/generator/testing/syntheticSurvey.ts';
+import { handleDashboardCsv, handleDashboardJson } from '../src/dashboard/http.ts';
 import { DashboardReaderError, readTenantDashboard } from '../src/dashboard/reader.ts';
 import { exportTenants, EXPORT_FILES, TENANTS } from '../src/publication/exportTenants.ts';
 import { applyFoundation } from '../src/warehouse/foundation.ts';
@@ -395,6 +396,144 @@ try {
     console.log('pipeline: publication cross-tenant pointer was refused');
   } catch (error) {
     throw stepError('publication', error);
+  }
+
+  console.log('pipeline: dashboard');
+  try {
+    const exportRoot = join(workDir, 'exports');
+    const sections = [
+      'indicator_analysis',
+      'category_analysis',
+      'change_drivers',
+      'question_response_distribution',
+      'support_signal_summary',
+    ] as const;
+    for (const tenant of TENANTS) {
+      const env: Readonly<Record<string, string | undefined>> = {
+        DASHBOARD_TENANT: tenant,
+        DASHBOARD_EXPORT_ROOT: exportRoot,
+      };
+      const base = 'http://dashboard.check/api';
+
+      const jsonResponse = await handleDashboardJson(new Request(base), env);
+      const jsonBody = await jsonResponse.text();
+      if (jsonResponse.status !== 200) {
+        throw new Error(`${tenant} no query: expected json 200, got ${jsonResponse.status}`);
+      }
+      if (jsonBody.includes('document_id') || jsonBody.includes('event_id')) {
+        throw new Error(`${tenant} no query: json body contains document_id or event_id`);
+      }
+      const dashboard = JSON.parse(jsonBody) as Record<string, Array<Record<string, unknown>>>;
+      for (const section of sections) {
+        const rows = dashboard[section];
+        if (!Array.isArray(rows)) {
+          throw new Error(`${tenant} no query: json body is missing ${section}`);
+        }
+        for (const row of rows) {
+          if (row.trust_id !== tenant) {
+            throw new Error(
+              `${tenant} no query: expected ${section} rows to have trust_id '${tenant}', got '${String(row.trust_id)}'`,
+            );
+          }
+          if (row.is_suppressed === true) {
+            if (row.adverse_response_rate != null || row.response_rate != null) {
+              throw new Error(
+                `${tenant} no query: suppressed ${section} row has non-null adverse_response_rate or response_rate`,
+              );
+            }
+          }
+        }
+      }
+
+      const csvResponse = await handleDashboardCsv(
+        new Request(`${base}?section=indicator_analysis`),
+        env,
+      );
+      const csvBody = await csvResponse.text();
+      if (csvResponse.status !== 200) {
+        throw new Error(`${tenant} ?section=indicator_analysis: expected csv 200, got ${csvResponse.status}`);
+      }
+      const csvContentType = csvResponse.headers.get('content-type') ?? '';
+      if (!csvContentType.startsWith('text/csv')) {
+        throw new Error(
+          `${tenant} ?section=indicator_analysis: expected content-type starting 'text/csv', got '${csvContentType}'`,
+        );
+      }
+      if (!csvBody.startsWith('trust_id')) {
+        throw new Error(`${tenant} ?section=indicator_analysis: expected header line beginning 'trust_id'`);
+      }
+      const csvStatus = csvResponse.status;
+
+      const refusedQueries = [
+        '?tenant=trust_south',
+        '?trust_id=trust_south',
+        '?school=..%2Fetc',
+        '?school=a&school=b',
+        '?unknown=1',
+      ];
+      let refused = 0;
+      for (const query of refusedQueries) {
+        const response = await handleDashboardJson(new Request(`${base}${query}`), env);
+        const body = await response.text();
+        if (response.status !== 400) {
+          throw new Error(`${tenant} ${query}: expected 400, got ${response.status}`);
+        }
+        if (body.includes(exportRoot) || body.includes(workDir)) {
+          throw new Error(`${tenant} ${query}: response body leaks exportRoot or workDir`);
+        }
+        refused += 1;
+      }
+
+      const otherTenant = TENANTS.find((candidate) => candidate !== tenant);
+      if (otherTenant === undefined) {
+        throw new Error(`${tenant}: expected another tenant in TENANTS`);
+      }
+      const otherDocument = await readTenantDashboard(exportRoot, otherTenant);
+      let schoolCode: string | undefined;
+      outer: for (const section of sections) {
+        for (const row of otherDocument[section]) {
+          const entries = Object.entries(row).filter(
+            ([key, value]) => /school/i.test(key) && value !== null && value !== undefined,
+          );
+          const preferred = entries.find(
+            ([key]) => key === 'school_id' || key === 'school_code' || key === 'school',
+          );
+          const entry = preferred ?? entries[0];
+          if (entry !== undefined && String(entry[1]).length > 0) {
+            schoolCode = String(entry[1]);
+            break outer;
+          }
+        }
+      }
+      if (schoolCode === undefined) {
+        throw new Error(`${tenant}: no school code found in the ${otherTenant} document`);
+      }
+      const schoolQuery = `?school=${encodeURIComponent(schoolCode)}`;
+      const schoolResponse = await handleDashboardJson(new Request(`${base}${schoolQuery}`), env);
+      const schoolBody = await schoolResponse.text();
+      if (schoolResponse.status !== 400) {
+        throw new Error(`${tenant} ${schoolQuery}: expected 400, got ${schoolResponse.status}`);
+      }
+      if (schoolBody.includes(exportRoot) || schoolBody.includes(workDir)) {
+        throw new Error(`${tenant} ${schoolQuery}: response body leaks exportRoot or workDir`);
+      }
+      refused += 1;
+
+      console.log(`pipeline: dashboard ${tenant} json=${jsonResponse.status} csv=${csvStatus} refused=${refused}`);
+    }
+
+    const copyRoot = join(workDir, 'exports-copy');
+    const crossTenantResponse = await handleDashboardJson(
+      new Request('http://dashboard.check/api'),
+      { DASHBOARD_TENANT: 'trust_north', DASHBOARD_EXPORT_ROOT: copyRoot },
+    );
+    await crossTenantResponse.text();
+    if (crossTenantResponse.status !== 503) {
+      throw new Error(`cross-tenant pointer: expected 503, got ${crossTenantResponse.status}`);
+    }
+    console.log('pipeline: dashboard cross-tenant pointer was refused');
+  } catch (error) {
+    throw stepError('dashboard', error);
   }
   console.log('pipeline: ok');
 } catch (error) {
