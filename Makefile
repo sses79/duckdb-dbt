@@ -7,7 +7,7 @@ EXPORT_ROOT ?= exports
 RUN_ID ?= $(shell date -u +%Y%m%dT%H%M%SZ)
 DBT ?= $(or $(DBT_EXECUTABLE),dbt)
 
-.PHONY: help check generate load build export all
+.PHONY: help check generate load build export all dashboard
 
 help:
 	@echo "help: list the available targets"
@@ -18,11 +18,14 @@ help:
 	@echo "export: write tenant exports under $(EXPORT_ROOT)"
 	@echo "load-mutations: load the five mutation deliveries into $(DUCKDB_PATH) from $(SOURCE)"
 	@echo "all: run generate, load, build and export"
+	@echo "dashboard: run the dashboard dev server for TENANT (e.g. trust_north)"
 
 check:
 	pnpm run typecheck
 	pnpm run test
 	pnpm run pipeline
+	node_modules/.bin/vitest run --dir apps/dashboard --maxWorkers=1 --passWithNoTests
+	node_modules/.bin/next build --webpack apps/dashboard
 
 $(BATCH_DIR)/manifest.json:
 	node src/generator/cli.ts --source $(SOURCE) --out $(BATCH_DIR) --batch-id $(BATCH_ID)
@@ -42,3 +45,7 @@ export: build
 	node src/warehouse/cli.ts export --run-id $(RUN_ID) --export-root $(EXPORT_ROOT) --db $(DUCKDB_PATH)
 
 all: export
+
+dashboard:
+	@if [ -z "$(TENANT)" ]; then echo 'TENANT is required: make dashboard TENANT=trust_north' >&2; exit 2; fi
+	DASHBOARD_TENANT=$(TENANT) DASHBOARD_EXPORT_ROOT=$(abspath $(EXPORT_ROOT)) NEXT_TELEMETRY_DISABLED=1 node_modules/.bin/next dev --webpack apps/dashboard
