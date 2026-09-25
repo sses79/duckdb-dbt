@@ -26,6 +26,36 @@ describe('TrendChart', () => {
     expect(tagCount(markup, 'path')).toBe(0);
   });
 
+  it('anchors the first period label to the start, the middle one to the middle, and the last to the end', () => {
+    const trend: DashboardTrend = {
+      periods: ['2018-autumn', '2019-spring', '2019-summer'],
+      benchmark: [null, null, null],
+      series: [{ school: 'school_n01', label: 'School One', rates: [0.1, null, 0.3] }],
+    };
+
+    const markup = renderToStaticMarkup(
+      <TrendChart trend={trend} indicatorLabel="Feeling angry" />,
+    );
+
+    expect(markup).toContain('text-anchor="start">Autumn 2018');
+    expect(markup).toContain('text-anchor="middle">Spring 2019');
+    expect(markup).toContain('text-anchor="end">Summer 2019');
+  });
+
+  it('keeps a single period label centred', () => {
+    const trend: DashboardTrend = {
+      periods: ['2019-spring'],
+      benchmark: [null],
+      series: [{ school: 'school_n01', label: 'School One', rates: [0.2] }],
+    };
+
+    const markup = renderToStaticMarkup(
+      <TrendChart trend={trend} indicatorLabel="Feeling angry" />,
+    );
+
+    expect(markup).toContain('text-anchor="middle">Spring 2019');
+  });
+
   it('renders one circle per non-null rate from the trust_north view and none for school_n02 in 2019-spring', () => {
     const document = buildFixtureDashboard('trust_north');
     const selection = resolveSelection(document, {});
