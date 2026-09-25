@@ -498,7 +498,9 @@ describe('change_drivers', () => {
         )!;
         expect(row.eligible_submission_count).toBe(cohort.eligible);
         expect(row.is_suppressed).toBe(cohort.suppressed);
-        expect(row.adverse_response_rate).toBe(round4(cohort.adverse / cohort.answered));
+        expect(row.adverse_response_rate).toBe(
+          cohort.suppressed ? null : round4(cohort.adverse / cohort.answered),
+        );
         const previous =
           cohort.period === LATEST_PERIOD
             ? cohorts.get(`${cohort.school_id}:${PREVIOUS_PERIOD}:${cohort.question_code}`)
